@@ -1,0 +1,7 @@
+# 手元で動かすとき用。「.dev.vars」という名前でコピーして、値を入れる（.dev.vars は git に入りません）
+ANTHROPIC_API_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+# MODEL=claude-haiku-5-5
+# MONTHLY_LIMIT=50

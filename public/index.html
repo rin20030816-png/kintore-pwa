@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>筋トレは力なり</title>
+<meta name="description" content="筋トレの記録、自己ベスト更新の演出、カレンダー、グラフ。ログインなしでも使える無料の記録アプリ。">
+<meta name="theme-color" content="#0a0b0e">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="筋トレは力なり">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Dela+Gothic+One&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="top"><h1 id="appname" aria-label="筋トレは力なり"><span class="logo" aria-hidden="true"><span class="w">筋トレ<span class="ha">は</span><span class="ac">力なり</span></span><small>Consistency is strength</small></span></h1><button class="status" id="status" data-a="gomenu" data-v="data">読み込み中</button></div>
+<main id="main"><noscript><p class="empty">このアプリはJavaScriptを使います。ブラウザの設定で有効にしてください。</p></noscript></main>
+<nav id="nav" aria-label="画面切り替え"></nav>
+<div id="cele"></div>
+<div id="sheet"></div>
+<script src="/config.js"></script>
+<script src="/vendor/supabase.js"></script>
+<script src="/store.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
