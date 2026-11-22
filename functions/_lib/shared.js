@@ -37,7 +37,12 @@ export async function authUser(request, c) {
   return u && UUID.test(u.id || "") ? { id: u.id } : null;
 }
 
-const svc = c => ({ apikey: c.service, authorization: "Bearer " + c.service, "content-type": "application/json" });
+// 旧形式のキー(eyJ…のJWT)は Authorization にも付ける。新形式(sb_secret_…)は apikey だけで送る
+const svc = c => {
+  const h = { apikey: c.service, "content-type": "application/json" };
+  if (String(c.service).startsWith("eyJ")) h.authorization = "Bearer " + c.service;
+  return h;
+};
 
 export async function rpc(c, name, args) {
   const r = await fetch(c.url + "/rest/v1/rpc/" + name, { method: "POST", headers: svc(c), body: JSON.stringify(args) });

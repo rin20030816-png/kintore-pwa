@@ -79,8 +79,8 @@ APIキーなどの秘密の値は、**このリポジトリには入れません
    |---|---|---|
    | `ANTHROPIC_API_KEY` | Anthropic の API キー | はい |
    | `SUPABASE_URL` | Project URL | いいえ |
-   | `SUPABASE_ANON_KEY` | anon public キー | いいえ |
-   | `SUPABASE_SERVICE_ROLE_KEY` | service_role キー（Supabase の API 画面） | **はい** |
+   | `SUPABASE_ANON_KEY` | Publishable key（旧 anon public） | いいえ |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Secret key（旧 service_role）。Supabase の API Keys 画面で作る/表示する | **はい** |
    | `MODEL` | 省略可。初期値 `claude-haiku-5-5`。読み間違いが多ければ `claude-sonnet-5-5` | いいえ |
    | `MONTHLY_LIMIT` | 省略可。初期値 `50` | いいえ |
 

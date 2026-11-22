@@ -77,6 +77,13 @@ revoke insert, update, delete on public.ai_usage from authenticated;
 -- 記録の行をブラウザから直接消すことはしない（消したことは entries を空にして伝える）
 revoke delete on public.workout_days, public.user_meta from authenticated;
 
+-- 必要な権限を、はっきり与える（プロジェクト作成時の「新しいテーブルに自動で権限を付ける」の設定がオンでもオフでも動くように）
+-- 実際に何が読み書きできるかは、上のRLSのポリシーが行ごとに決める
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update on public.workout_days, public.user_meta to authenticated;
+grant select on public.ai_usage to authenticated;
+grant select, insert, update, delete on public.workout_days, public.user_meta, public.ai_usage to service_role;
+
 -- ============ 関数 ============
 -- AI読み取り1枚ぶんを使う。上限に達していたら -1、使えたら今月の使用枚数を返す。
 -- 1回の命令で数えるので、同時に何枚送られても上限を超えない。サーバー(service_role)だけが呼べる
