@@ -66,13 +66,14 @@ export async function onRequestPost({ request, env }) {
         ] }]
       })
     });
-    if (!res.ok) throw new Error("anthropic " + res.status);
+    if (!res.ok) { const e = new Error("anthropic " + res.status); e.status = res.status; e.detail = (await res.text().catch(() => "")).slice(0, 300); throw e; }
     const out = await res.json();
     const text = (out.content || []).filter(p => p.type === "text").map(p => p.text).join("");
     const days = extractDays(text);
     if (!days) throw new Error("parse");
     return json({ days, quota: { used, limit: c.limit } });
   } catch (e) {
-    return json({ error: "ai_failed", quota: { used, limit: c.limit } }, 502);
+    // 一時的な診断: Anthropicの返事（エラー内容）だけを返す。鍵は含まれない
+    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null, detail: e.detail || String(e.message || "").slice(0, 120), model: c.model }, 502);
   }
 }
