@@ -94,10 +94,10 @@
       const [p, fl, bl, iv, ac] = await Promise.all([
         SB.from("profiles").select("display_name,share").eq("user_id", A.user.id).maybeSingle(),
         SB.rpc("list_friends"), SB.rpc("list_blocks"),
-        SB.from("friend_invites").select("token,expires_at,created_at,note").is("used_by", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
+        SB.from("friend_invites").select("token,expires_at,created_at,note,max_uses,use_count").is("used_by", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
         SB.rpc("friends_activity", { p_from: rangeFrom(), p_to: today() })]);
       if (p.error || fl.error || bl.error || iv.error || ac.error) throw new Error("load");
-      FR.profile = p.data || null; FR.friends = fl.data || []; FR.blocks = bl.data || []; FR.invites = iv.data || []; FR.act = ac.data || [];
+      FR.profile = p.data || null; FR.friends = fl.data || []; FR.blocks = bl.data || []; FR.invites = (iv.data || []).filter(i => i.use_count < i.max_uses); FR.act = ac.data || [];
       FR.loaded = true;
       const nw = await SB.rpc("take_invite_news");
       (nw.data || []).forEach(n => toast((n.friend_name || "だれか") + "さんが、招待を使って友達になりました"));
@@ -154,6 +154,10 @@
   @keyframes frflash{0%{box-shadow:0 0 0 0 rgba(255,75,31,.6)}100%{box-shadow:0 0 0 14px rgba(255,75,31,0)}}
   .fr-tag{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:900;border-radius:99px;padding:2px 10px;margin-right:6px}
   .fr-tag.sm{background:var(--gold);color:#1a1200}
+  .fr-tag.grp{background:#2f7bff}
+  .fr-tag.one{background:#3a3f4a}
+  .fr-kind{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:14px;font-weight:900}
+  .fr-kind label{display:flex;align-items:center;gap:6px}
   .fr-memo{font-size:15px}
   .fr-old{border-top:1px solid var(--line);padding:10px 0}
   .fr-oldh{display:flex;align-items:center;gap:8px;justify-content:space-between}
@@ -220,11 +224,15 @@
     const fresh = FR.newInvite ? sorted.find(i => i.token === FR.newInvite) : null;
     const rest = sorted.filter(i => i !== fresh);
     const full = sorted.length >= 5;
-    const freshBox = fresh ? `<div id="fr-new" class="fr-new"><span class="fr-tag">いま作ったリンク</span>${fresh.note ? `<b class="fr-memo">${esc(fresh.note)}用</b>` : ""}${linkRow(fresh)}<p class="fr-note" style="margin:6px 0 0">このリンクは<b>1人だけ</b>使えます。次の友達には、もう一度「新しいリンクを作る」を押して、別のリンクを作ってください。</p></div>` : "";
-    const restBox = rest.length ? `<h2 style="margin:16px 0 6px">使っていないリンク（${sorted.length}/5本）</h2>${rest.map((i, k) => `<div class="fr-old"><div class="fr-oldh"><span>${k === 0 && !fresh ? `<span class="fr-tag sm">いちばん新しい</span>` : ""}<b>${i.note ? esc(i.note) + "用" : "メモなし"}</b><small>${fmtT(i.created_at)} に作成 ・ あと${leftDays(i)}日</small></span><button class="btn sm" data-fr="revoke" data-v="${esc(i.token)}">削除</button></div>${linkRow(i)}</div>`).join("")}` : "";
+    const grp = i => i.max_uses > 1 ? `<span class="fr-tag grp">グループ用　${i.use_count}/${i.max_uses}人が使用</span>` : `<span class="fr-tag one">1人用</span>`;
+    const freshBox = fresh ? `<div id="fr-new" class="fr-new"><span class="fr-tag">いま作ったリンク</span>${grp(fresh)}${fresh.note ? `<b class="fr-memo">${esc(fresh.note)}用</b>` : ""}${linkRow(fresh)}<p class="fr-note" style="margin:6px 0 0">${fresh.max_uses > 1 ? `このリンクは、<b>${fresh.max_uses}人まで</b>使えます。あと${leftDays(fresh)}日で切れます。信頼できるグループにだけ、送ってください。` : `このリンクは<b>1人だけ</b>使えます。次の友達には、もう一度「新しいリンクを作る」を押して、別のリンクを作ってください。`}</p></div>` : "";
+    const restBox = rest.length ? `<h2 style="margin:16px 0 6px">使っていないリンク（${sorted.length}/5本）</h2>${rest.map((i, k) => `<div class="fr-old"><div class="fr-oldh"><span>${k === 0 && !fresh ? `<span class="fr-tag sm">いちばん新しい</span>` : ""}${grp(i)}<b>${i.note ? esc(i.note) + "用" : "メモなし"}</b><small>${fmtT(i.created_at)} に作成 ・ あと${leftDays(i)}日</small></span><button class="btn sm" data-fr="revoke" data-v="${esc(i.token)}">削除</button></div>${linkRow(i)}</div>`).join("")}` : "";
+    const kind = FR.kind === "5" ? "5" : "1";
     return `<div class="card"><h2>友達を招待する</h2>
-        <p class="fr-note" style="margin:0 0 8px">1人の友達につき、1本のリンクを作って送ります。リンクは、<b>1人だけ使えて、7日で切れます</b>。使われると、自動で「使用済み」になって、この一覧から消えます。友達が増えたら、そのたびに、新しいリンクを作ってください。</p>
-        <div class="fr-name"><input id="fr-invnote" maxlength="12" placeholder="だれに送る？（メモ・任意）" aria-label="招待のメモ"><button class="btn grad" data-fr="invite" ${FR.busy || full ? "disabled" : ""}>新しいリンクを作る</button></div>
+        <p class="fr-note" style="margin:0 0 8px">リンクは、2種類から選べます。<br><b>1人用</b>：1人だけ使えて、7日で切れます。1人の友達につき、1本ずつ作ります。<br><b>グループ用</b>：5人まで使えて、3日で切れます。LINEのグループなどに、1本送れます（同時に2本まで）。<br>使い終わったリンクは、自動で一覧から消えます。</p>
+        <div class="fr-kind"><label><input type="radio" name="fr-kind" value="1" ${kind === "1" ? "checked" : ""}> 1人用（7日）</label><label><input type="radio" name="fr-kind" value="5" ${kind === "5" ? "checked" : ""}> グループ用（5人まで・3日）</label></div>
+        ${kind === "5" ? `<p class="fr-note" style="margin:0 0 8px"><b>グループ用リンクは、転送されると、知らない人も入れてしまいます。</b>信頼できるグループにだけ送ってください。</p>` : ""}
+        <div class="fr-name"><input id="fr-invnote" maxlength="12" value="${esc(FR.draft || "")}" placeholder="${kind === "5" ? "どのグループ？（メモ・任意）" : "だれに送る？（メモ・任意）"}" aria-label="招待のメモ"><button class="btn grad" data-fr="invite" ${FR.busy || full ? "disabled" : ""}>新しいリンクを作る</button></div>
         <p class="fr-note" style="margin:4px 0 0">メモは、あなただけに見えます（友達には見えません）。${full ? "<b>使っていないリンクが5本あるので、いまは新しく作れません。使われるか、削除すると、作れます。</b>" : ""}</p>
         ${freshBox}${restBox}
         <p class="fr-note">友達は最大30人です（いま ${FR.friends.length}人）。名前やメールアドレスで、友達を探すことはできません。</p></div>
@@ -270,12 +278,13 @@
     const memo = String((document.getElementById("fr-invnote") || {}).value || "").trim();   // 画面を描き直す前に、メモを読む
     if ([...memo].length > 12) return say("メモは12文字までです。");
     FR.busy = true; render();
-    const r = await SB.rpc("create_invite", { p_note: memo || null }); FR.busy = false;
+    const r = await SB.rpc("create_invite", { p_note: memo || null, p_max: FR.kind === "5" ? 5 : 1 }); FR.busy = false;
     if (r.error) {
       const m = String(r.error.message || "");
-      say(/friends_full/.test(m) ? "友達が30人います。これ以上は招待できません。" : /too_many_invites/.test(m) ? "使っていないリンクが5本あります。使われるか、削除すると、新しく作れます。" : /need_profile/.test(m) ? "先に、表示名を決めてください。" : "リンクを作れませんでした。もう一度お試しください。");
+      say(/friends_full/.test(m) ? "友達が30人います。これ以上は招待できません。" : /too_many_group_invites/.test(m) ? "グループ用リンクは、同時に2本までです。使い切るか、削除すると、新しく作れます。" : /too_many_invites/.test(m) ? "使っていないリンクが5本あります。使われるか、削除すると、新しく作れます。" : /need_profile/.test(m) ? "先に、表示名を決めてください。" : "リンクを作れませんでした。もう一度お試しください。");
       return;
     }
+    FR.draft = "";
     FR.newInvite = (r.data && r.data[0] && r.data[0].token) || null;
     await load();
     setTimeout(() => { const el = document.getElementById("fr-new"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }) }, 80);
@@ -288,6 +297,9 @@
   }
   async function rpcDo(name, args, okMsg) { const r = await SB.rpc(name, args); if (r.error) return say("うまくいきませんでした。もう一度お試しください。"); toast(okMsg); FR.loaded = false; load() }
 
+  // 1人用／グループ用の切り替え（メモの下書きは、描き直しで消えないように覚えておく）
+  document.addEventListener("input", ev => { if (ev.target && ev.target.id === "fr-invnote") FR.draft = ev.target.value });
+  document.addEventListener("change", ev => { const r = ev.target; if (r && r.name === "fr-kind") { FR.kind = r.value; render() } });
   document.addEventListener("click", async ev => {
     const b = ev.target.closest && ev.target.closest("[data-fr]"); if (!b) return;
     const a = b.dataset.fr, v = b.dataset.v;
@@ -327,7 +339,7 @@
       document.body.appendChild(el); setTimeout(() => { const i = el.querySelector("#dlg-name"); i && i.focus() }, 50);
     });
   }
-  const ST = { not_found: "このリンクは使えません。", used: "このリンクは、もう使われています。招待した人に、新しいリンクをもらってください。", expired: "このリンクは、期限が切れています。招待した人に、新しいリンクをもらってください。", self: "これは、あなた自身の招待リンクです。友達に送ってください。", unavailable: "このリンクでは、友達になれません。", already: "もう友達です。", my_full: "友達が30人います。これ以上は増やせません。", their_full: "相手の友達がいっぱいで、友達になれません。" };
+  const ST = { not_found: "このリンクは使えません。", used: "このリンクは、もう使われています（またはグループ用の人数がいっぱいです）。招待した人に、新しいリンクをもらってください。", expired: "このリンクは、期限が切れています。招待した人に、新しいリンクをもらってください。", self: "これは、あなた自身の招待リンクです。友達に送ってください。", unavailable: "このリンクでは、友達になれません。", already: "もう友達です。", my_full: "友達が30人います。これ以上は増やせません。", their_full: "相手の友達がいっぱいで、友達になれません。" };
   let handling = false;
   async function handlePending() {
     if (handling || !PENDING || !A.user || !A.ready) return; handling = true;
