@@ -74,6 +74,7 @@ export async function onRequestPost({ request, env }) {
     return json({ days, quota: { used, limit: c.limit } });
   } catch (e) {
     // 一時的な診断: Anthropicの返事（エラー内容）だけを返す。鍵は含まれない
-    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null, detail: e.detail || String(e.message || "").slice(0, 120), model: c.model }, 502);
+    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null, detail: e.detail || String(e.message || "").slice(0, 120), model: c.model,
+      key: { prefix: String(c.anthropic || "").slice(0, 7), len: String(c.anthropic || "").length, ascii: /^[\x21-\x7e]+$/.test(String(c.anthropic || "")), hasSpace: /\s/.test(String(c.anthropic || "")), hasDots: /[•…\.]{2,}/.test(String(c.anthropic || "")) } }, 502);
   }
 }
