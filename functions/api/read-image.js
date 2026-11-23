@@ -66,15 +66,14 @@ export async function onRequestPost({ request, env }) {
         ] }]
       })
     });
-    if (!res.ok) { const e = new Error("anthropic " + res.status); e.status = res.status; e.detail = (await res.text().catch(() => "")).slice(0, 300); throw e; }
+    if (!res.ok) { const e = new Error("anthropic " + res.status); e.status = res.status; throw e; }
     const out = await res.json();
     const text = (out.content || []).filter(p => p.type === "text").map(p => p.text).join("");
     const days = extractDays(text);
     if (!days) throw new Error("parse");
     return json({ days, quota: { used, limit: c.limit } });
   } catch (e) {
-    // 一時的な診断: Anthropicの返事（エラー内容）だけを返す。鍵は含まれない
-    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null, detail: e.detail || String(e.message || "").slice(0, 120), model: c.model,
-      key: { prefix: String(c.anthropic || "").slice(0, 7), len: String(c.anthropic || "").length, ascii: /^[\x21-\x7e]+$/.test(String(c.anthropic || "")), hasSpace: /\s/.test(String(c.anthropic || "")), hasDots: /[•…\.]{2,}/.test(String(c.anthropic || "")) } }, 502);
+    // 失敗の理由は画面には出さない（上流の状態番号だけ返す。鍵や中身は含まれない）
+    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null }, 502);
   }
 }
