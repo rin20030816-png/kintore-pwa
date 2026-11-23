@@ -88,15 +88,29 @@ grant select, insert, update, delete on public.workout_days, public.user_meta, p
 -- AI読み取り1枚ぶんを、ログイン中の本人の分として数える（サービスキーは使わない）。
 -- 上限に達していたら -1、増やせたら今月の使用枚数を返す。1回の命令で数えるので、同時に何枚送られても上限を超えない。
 -- 本人が呼べるのは「自分の分を1つ増やす」ことだけ。減らす関数は作らないので、自分で枚数を戻すことはできない
+-- 人ごとの上限（初期は誰も入っていない＝全員、標準の上限）。書き込めるのは管理者（SQL Editor）だけ
+create table if not exists public.ai_limits (
+  user_id       uuid primary key references auth.users(id) on delete cascade,
+  monthly_limit integer not null check (monthly_limit >= 0)
+);
+alter table public.ai_limits enable row level security;
+revoke all on public.ai_limits from anon, authenticated;
+grant select on public.ai_limits to authenticated;
+drop policy if exists "limits_select_own" on public.ai_limits;
+create policy "limits_select_own" on public.ai_limits for select to authenticated using (auth.uid() = user_id);
+grant select, insert, update, delete on public.ai_limits to service_role;
+
+-- 本人に上限の指定があればそれを使い、なければ呼び出し側が渡した標準の上限を使う
 create or replace function public.ai_consume_self(p_month text, p_limit integer)
 returns integer language plpgsql security definer set search_path = '' as $$
-declare uid uuid := auth.uid(); c integer;
+declare uid uuid := auth.uid(); c integer; lim integer;
 begin
   if uid is null then raise exception 'not signed in'; end if;
   if p_month !~ '^\d{4}-\d{2}$' then raise exception 'bad month'; end if;
+  select coalesce((select monthly_limit from public.ai_limits where user_id = uid), greatest(p_limit, 1)) into lim;
   insert into public.ai_usage (user_id, month, count) values (uid, p_month, 0) on conflict do nothing;
   update public.ai_usage set count = count + 1
-    where user_id = uid and month = p_month and count < greatest(p_limit, 1)
+    where user_id = uid and month = p_month and count < lim
     returning count into c;
   if c is null then return -1; end if;
   return c;
@@ -104,6 +118,17 @@ end $$;
 
 revoke all on function public.ai_consume_self(text, integer) from public, anon;
 grant execute on function public.ai_consume_self(text, integer) to authenticated;
+
+-- 画面に出す「今月の上限」を返す
+create or replace function public.ai_limit_self(p_default integer)
+returns integer language sql stable security definer set search_path = '' as $$
+  select coalesce((select monthly_limit from public.ai_limits where user_id = auth.uid()), greatest(p_default, 1))
+$$;
+revoke all on function public.ai_limit_self(integer) from public, anon;
+grant execute on function public.ai_limit_self(integer) to authenticated;
+
+-- 上限を大きくする人は、SQL Editor で次のように入れる（メールアドレスはコードに書かない）:
+--   insert into public.ai_limits (user_id, monthly_limit) select id, 100000 from auth.users where email = '○○' on conflict (user_id) do update set monthly_limit = excluded.monthly_limit;
 
 -- （以前の版で作った service_role 用の関数が残っていれば、使わないので消す）
 drop function if exists public.ai_try_consume(uuid, text, integer);

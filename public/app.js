@@ -375,7 +375,7 @@ function vImp(){
     ${I.total?`<div style="margin-top:10px"><div class="bar"><i style="width:${pct}%"></i></div><p class="muted" style="margin:4px 0 0">${I.done} / ${I.total}枚${I.busy?"　読み取り中（1枚あたり数十秒かかることがあります）":""}</p></div>`:""}
     ${I.msg?`<p class="msg" style="margin-top:8px">${esc(I.msg)}</p>`:""}
     ${!I.busy&&I.failed.length?`<button class="btn" data-a="impretry" style="margin-top:8px">読み取れなかった${I.failed.length}枚をやり直す</button>`:""}
-    ${!aiOn?"":`<p class="muted" style="margin-top:8px">${q?`今月は ${q.used} / ${q.limit}枚 使いました（毎月1日にもどります）。`:""}選んだ画像は、読み取りのためだけに縮小して外部のAIサービス（Anthropic）へ送られます。このアプリには画像を保存しません。</p>`}</div>
+    ${!aiOn?"":`<p class="muted" style="margin-top:8px">${q?(q.limit>=1000?`今月は ${q.used}枚 使いました（このアカウントは、上限なし）。`:`今月は ${q.used} / ${q.limit}枚 使いました（毎月1日にもどります）。`):""}選んだ画像は、読み取りのためだけに縮小して外部のAIサービス（Anthropic）へ送られます。このアプリには画像を保存しません。</p>`}</div>
   ${I.items.length>1&&dated?`<button class="btn grad" data-a="impall" style="padding:12px">日付が入っている${dated}日分をまとめて保存</button>`:""}
   ${items}`;
 }

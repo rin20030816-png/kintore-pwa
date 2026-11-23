@@ -2,7 +2,7 @@
 // 筋トレ記録のスクショ1枚を受け取り、Anthropic API で読み取って {days:[...]} を返す。
 // ・ログイン必須（Supabaseのトークンを確認）  ・1人あたり月 MONTHLY_LIMIT 枚（初期値50）
 // ・APIキーはCloudflareの環境変数にだけある  ・画像は保存しない（メモリ上で中継するだけ）
-import { PROMPT, json, monthKey, settings, authUser, consume } from "../_lib/shared.js";
+import { PROMPT, json, monthKey, settings, authUser, consume, limitFor } from "../_lib/shared.js";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -51,7 +51,8 @@ export async function onRequestPost({ request, env }) {
   try { used = await consume(c, user, month) }
   catch (e) { return json({ error: "server" }, 502) }
   if (typeof used !== "number") return json({ error: "server" }, 502);
-  if (used < 0) return json({ error: "quota", quota: { used: c.limit, limit: c.limit } }, 429);
+  const limit = await limitFor(c, user);   // 本人に個別の上限があれば、その数（画面の表示用）
+  if (used < 0) return json({ error: "quota", quota: { used: limit, limit } }, 429);
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -71,9 +72,9 @@ export async function onRequestPost({ request, env }) {
     const text = (out.content || []).filter(p => p.type === "text").map(p => p.text).join("");
     const days = extractDays(text);
     if (!days) throw new Error("parse");
-    return json({ days, quota: { used, limit: c.limit } });
+    return json({ days, quota: { used, limit } });
   } catch (e) {
     // 失敗の理由は画面には出さない（上流の状態番号だけ返す。鍵や中身は含まれない）
-    return json({ error: "ai_failed", quota: { used, limit: c.limit }, upstream: e.status || null }, 502);
+    return json({ error: "ai_failed", quota: { used, limit }, upstream: e.status || null }, 502);
   }
 }

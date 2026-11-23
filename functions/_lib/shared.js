@@ -50,6 +50,18 @@ export async function consume(c, user, month) {
   return t ? JSON.parse(t) : null;
 }
 
+// 画面に出す「今月の上限」。本人に個別の上限がある人はその数、いなければ標準の上限（取れなかったときも標準）
+export async function limitFor(c, user) {
+  try {
+    const r = await fetch(c.url + "/rest/v1/rpc/ai_limit_self", {
+      method: "POST", headers: asUser(c, user), body: JSON.stringify({ p_default: c.limit })
+    });
+    if (!r.ok) return c.limit;
+    const n = Number(JSON.parse(await r.text()));
+    return Number.isFinite(n) && n >= 0 ? n : c.limit;
+  } catch (e) { return c.limit }
+}
+
 export async function usedThisMonth(c, user, month) {
   const r = await fetch(`${c.url}/rest/v1/ai_usage?user_id=eq.${user.id}&month=eq.${encodeURIComponent(month)}&select=count`, { headers: asUser(c, user) });
   if (!r.ok) { const e = new Error("usage " + r.status); e.status = r.status; throw e; }
