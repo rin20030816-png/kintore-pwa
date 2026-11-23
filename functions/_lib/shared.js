@@ -53,7 +53,7 @@ export async function rpc(c, name, args) {
 
 export async function usedThisMonth(c, uid, month) {
   const r = await fetch(`${c.url}/rest/v1/ai_usage?user_id=eq.${uid}&month=eq.${encodeURIComponent(month)}&select=count`, { headers: svc(c) });
-  if (!r.ok) throw new Error("usage " + r.status);
+  if (!r.ok) { const e = new Error("usage " + r.status); e.status = r.status; e.body = (await r.text().catch(() => "")).slice(0, 200); throw e; }
   const rows = await r.json();
   return rows.length ? Number(rows[0].count) || 0 : 0;
 }

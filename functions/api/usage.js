@@ -7,5 +7,10 @@ export async function onRequestGet({ request, env }) {
   const user = await authUser(request, c).catch(() => null);
   if (!user) return json({ error: "unauthorized" }, 401);
   try { return json({ used: await usedThisMonth(c, user.id, monthKey()), limit: c.limit }) }
-  catch (e) { return json({ error: "server" }, 502) }
+  catch (e) {
+    // 一時的な診断: 鍵そのものは返さず、形と上流の応答だけ返す（原因が分かったら消す）
+    const k = String(c.service || "");
+    return json({ error: "server", upstream: e.status || null, upstreamBody: e.body || String(e.message || "").slice(0, 120),
+      key: { prefixOk: k.startsWith("sb_secret_") || k.startsWith("eyJ"), len: k.length, ascii: /^[\x21-\x7e]+$/.test(k) } }, 502);
+  }
 }
