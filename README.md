@@ -50,7 +50,8 @@ APIキーなどの秘密の値は、**このリポジトリには入れません
    - ⚠ `service_role` キーは `config.js` に**絶対に入れない**（手順3 で Cloudflare にだけ入れる）。
 4. **Authentication → Emails → SMTP Settings** で Custom SMTP を有効にし、Resend などの送信設定を入れる。
    - 初期設定のままだと、メールは1時間に数通しか送れず、公開すると詰まります。
-5. **Authentication → Emails → Templates** の **Confirm signup** と **Magic Link** の本文を、コードが出る形に書き換える。
+   > ⚠ 実際に試したところ、Supabase の標準のメール送信のままでは、**テンプレートを編集できず**（SMTP の設定が必要）、メールも**自分のチーム以外の人には届きません**。友達にメールでログインしてもらうには、この手順 4 のカスタムSMTPが必須です。設定しない間は、**Googleログイン（手順 7）が友達向けの入口**になります。
+5. **Authentication → Emails → Templates** の **Confirm signup** と **Magic Link** の本文を、コードが出る形に書き換える（手順 4 のあとでないと編集できません）。
    ```html
    <h2>ログイン用のコード</h2>
    <p>アプリの入力欄に、次の数字を入れてください。</p>
