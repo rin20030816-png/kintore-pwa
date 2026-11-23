@@ -145,7 +145,7 @@ function partSince(){
 const $main=document.getElementById("main");
 function render(){
   document.getElementById("nav").innerHTML=TABS.map(([k,l,c])=>`<button data-a="tab" data-v="${k}" aria-current="${S.tab===k}" style="--tc:var(${c})"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>${l}</button>`).join("");
-  $main.innerHTML=({log:vLog,cal:vCal,graph:vGraph,hall:vHall,menu:vMenu})[S.tab]();
+  $main.innerHTML=({log:vLog,cal:vCal,graph:vGraph,hall:vHall,menu:vMenu,friends:window.vFriends||vLog})[S.tab]();
 }
 function wText(name,s){if(isBW(name))return s.w>0?`自重+${fmt(s.w)}`:"自重";return s.w==null?"-":fmt(s.w)}
 function labels(e,j,flags,st){

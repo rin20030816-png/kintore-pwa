@@ -6,6 +6,7 @@
 public/            ← 公開されるファイル（Cloudflare Pages の出力フォルダ）
   index.html app.css app.js   画面と動き
   store.js                    保存・ログイン・同期（Supabase）
+  mascot.js friends.js        ボルト（マスコット）／友達機能（ポイント計算・招待リンク・ランキング）
   config.js                   Supabase の URL と anon キー（公開してよい値）
   sw.js manifest.webmanifest  PWA（オフライン・ホーム画面）
   privacy.html                プライバシーポリシー
@@ -15,6 +16,8 @@ functions/         ← Cloudflare Pages Functions（AI読み取り）
   api/read-image.js           POST /api/read-image
   api/usage.js                GET  /api/usage
 supabase/schema.sql  ← データベースの設計と権限（RLS）
+supabase/friends.sql ← 友達機能の表・権限・関数（schema.sql のあとに、SQL Editorで1回実行）
+docs/friends-spec.md ← 友達機能の仕様（招待リンク・ポイントの計算・見える範囲）
 ```
 
 APIキーなどの秘密の値は、**このリポジトリには入れません**。Cloudflare の環境変数にだけ入れます（手順3）。
