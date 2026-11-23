@@ -355,10 +355,10 @@ function vImp(){
       ${warn?`<p class="bad" style="font-size:13px">赤字の${warn}セットは読み取りが怪しいです。保存後に記録画面で直せます。</p>`:`<p class="muted">画面の1RM表示と計算が全セット一致しました。</p>`}
       <div class="row"><button class="btn pri sm" data-a="impsave" data-k="${k}" ${d.date?"":"disabled"}>この日を保存</button><button class="btn sm" data-a="impdrop" data-k="${k}">捨てる</button></div></section>`}).join("");
   const pct=I.total?Math.round(I.done/I.total*100):0;
-  const canAI=CLOUD_OK&&!!A.user,q=A.quota;
+  const aiOn=CFG.AI_ENABLED!==false,canAI=aiOn&&CLOUD_OK&&!!A.user,q=A.quota;
   return `<div class="card"><h2>スクショから記録を取り込む</h2>
     <p class="muted">筋トレMEMOの「WorkOut」共有画像を、まとめて選べます。AIが日付・種目・重量・回数を読み取り、同じ日の画像は1日にまとめます。保存する前に中身を確認できます。</p>
-    ${canAI?"":`<p class="msg">AIでの読み取りは、ログインしている人だけが使えます（1人あたり月${q?q.limit:50}枚まで）。${CLOUD_OK?`<button class="btn sm" data-a="gomenu" data-v="data" style="margin-left:6px">ログインする</button>`:"この環境ではログインが設定されていません。"}</p>`}
+    ${!aiOn?`<p class="msg">スクショのAI読み取りは、いま準備中です。記録は、記録画面から入力できます。以前のバックアップファイルは、「保存・ログイン」から戻せます。</p>`:canAI?"":`<p class="msg">AIでの読み取りは、ログインしている人だけが使えます（1人あたり月${q?q.limit:50}枚まで）。${CLOUD_OK?`<button class="btn sm" data-a="gomenu" data-v="data" style="margin-left:6px">ログインする</button>`:"この環境ではログインが設定されていません。"}</p>`}
     ${I.busy||!canAI?"":`<label class="drop" id="drop"><input type="file" id="imp-files" accept="image/png,image/jpeg,image/webp" multiple data-f="impadd">
       <b>＋ 画像を追加</b><span>何回でも追加できます。選んだ画像は下にたまっていきます</span></label>`}
     ${I.queue.length&&!I.busy?`<div class="thumbs">${I.queue.map((f,k)=>`<div class="th"><img src="${thumbURL(f)}" alt="${k+1}枚目"><button data-a="impunq" data-k="${k}" aria-label="${k+1}枚目を外す">×</button></div>`).join("")}</div>
@@ -367,7 +367,7 @@ function vImp(){
     ${I.total?`<div style="margin-top:10px"><div class="bar"><i style="width:${pct}%"></i></div><p class="muted" style="margin:4px 0 0">${I.done} / ${I.total}枚${I.busy?"　読み取り中（1枚あたり数十秒かかることがあります）":""}</p></div>`:""}
     ${I.msg?`<p class="msg" style="margin-top:8px">${esc(I.msg)}</p>`:""}
     ${!I.busy&&I.failed.length?`<button class="btn" data-a="impretry" style="margin-top:8px">読み取れなかった${I.failed.length}枚をやり直す</button>`:""}
-    <p class="muted" style="margin-top:8px">${q?`今月は ${q.used} / ${q.limit}枚 使いました（毎月1日にもどります）。`:""}選んだ画像は、読み取りのためだけに縮小して外部のAIサービス（Anthropic）へ送られます。このアプリには画像を保存しません。</p></div>
+    ${!aiOn?"":`<p class="muted" style="margin-top:8px">${q?`今月は ${q.used} / ${q.limit}枚 使いました（毎月1日にもどります）。`:""}選んだ画像は、読み取りのためだけに縮小して外部のAIサービス（Anthropic）へ送られます。このアプリには画像を保存しません。</p>`}</div>
   ${I.items.length>1&&dated?`<button class="btn grad" data-a="impall" style="padding:12px">日付が入っている${dated}日分をまとめて保存</button>`:""}
   ${items}`;
 }

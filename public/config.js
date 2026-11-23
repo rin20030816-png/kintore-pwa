@@ -3,5 +3,7 @@
 // 空のままだと、ログイン機能は無効になり、端末内保存だけで動きます。
 window.APP_CONFIG = {
   SUPABASE_URL: "https://kbkfgjmkcmieieftxmqy.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_YAFewGLpdV3_wzfnMqS7bA_GI0o51Kd"
+  SUPABASE_ANON_KEY: "sb_publishable_YAFewGLpdV3_wzfnMqS7bA_GI0o51Kd",
+  // スクショのAI読み取り。Cloudflareに環境変数（ANTHROPIC_API_KEY など）を入れたら true にする
+  AI_ENABLED: false
 };
