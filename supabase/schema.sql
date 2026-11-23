@@ -68,7 +68,7 @@ create policy "meta_select_own" on public.user_meta for select to authenticated 
 create policy "meta_insert_own" on public.user_meta for insert to authenticated with check (auth.uid() = user_id);
 create policy "meta_update_own" on public.user_meta for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- 使用枚数は本人が読めるだけ。増やす・減らすのはサーバー(service_role)だけ
+-- 使用枚数は本人が読めるだけ。増やすのは下の ai_consume_self() 経由のみで、減らす手段は作らない
 create policy "usage_select_own" on public.ai_usage for select to authenticated using (auth.uid() = user_id);
 
 -- ログインしていない人(anon)には、テーブルの権限そのものを与えない
@@ -85,30 +85,29 @@ grant select on public.ai_usage to authenticated;
 grant select, insert, update, delete on public.workout_days, public.user_meta, public.ai_usage to service_role;
 
 -- ============ 関数 ============
--- AI読み取り1枚ぶんを使う。上限に達していたら -1、使えたら今月の使用枚数を返す。
--- 1回の命令で数えるので、同時に何枚送られても上限を超えない。サーバー(service_role)だけが呼べる
-create or replace function public.ai_try_consume(p_user uuid, p_month text, p_limit integer)
+-- AI読み取り1枚ぶんを、ログイン中の本人の分として数える（サービスキーは使わない）。
+-- 上限に達していたら -1、増やせたら今月の使用枚数を返す。1回の命令で数えるので、同時に何枚送られても上限を超えない。
+-- 本人が呼べるのは「自分の分を1つ増やす」ことだけ。減らす関数は作らないので、自分で枚数を戻すことはできない
+create or replace function public.ai_consume_self(p_month text, p_limit integer)
 returns integer language plpgsql security definer set search_path = '' as $$
-declare c integer;
+declare uid uuid := auth.uid(); c integer;
 begin
-  insert into public.ai_usage (user_id, month, count) values (p_user, p_month, 0) on conflict do nothing;
+  if uid is null then raise exception 'not signed in'; end if;
+  if p_month !~ '^\d{4}-\d{2}$' then raise exception 'bad month'; end if;
+  insert into public.ai_usage (user_id, month, count) values (uid, p_month, 0) on conflict do nothing;
   update public.ai_usage set count = count + 1
-    where user_id = p_user and month = p_month and count < p_limit
+    where user_id = uid and month = p_month and count < greatest(p_limit, 1)
     returning count into c;
   if c is null then return -1; end if;
   return c;
 end $$;
 
--- 読み取りに失敗したときに1枚ぶん戻す
-create or replace function public.ai_refund(p_user uuid, p_month text)
-returns void language sql security definer set search_path = '' as $$
-  update public.ai_usage set count = greatest(count - 1, 0) where user_id = p_user and month = p_month;
-$$;
+revoke all on function public.ai_consume_self(text, integer) from public, anon;
+grant execute on function public.ai_consume_self(text, integer) to authenticated;
 
-revoke all on function public.ai_try_consume(uuid, text, integer) from public, anon, authenticated;
-revoke all on function public.ai_refund(uuid, text)               from public, anon, authenticated;
-grant execute on function public.ai_try_consume(uuid, text, integer) to service_role;
-grant execute on function public.ai_refund(uuid, text)               to service_role;
+-- （以前の版で作った service_role 用の関数が残っていれば、使わないので消す）
+drop function if exists public.ai_try_consume(uuid, text, integer);
+drop function if exists public.ai_refund(uuid, text);
 
 -- アカウント削除: ログイン中の本人のアカウントを消す。記録・使用枚数は「on delete cascade」で一緒に消える
 create or replace function public.delete_my_account()

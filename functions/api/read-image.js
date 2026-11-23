@@ -2,7 +2,7 @@
 // 筋トレ記録のスクショ1枚を受け取り、Anthropic API で読み取って {days:[...]} を返す。
 // ・ログイン必須（Supabaseのトークンを確認）  ・1人あたり月 MONTHLY_LIMIT 枚（初期値50）
 // ・APIキーはCloudflareの環境変数にだけある  ・画像は保存しない（メモリ上で中継するだけ）
-import { PROMPT, json, monthKey, settings, authUser, rpc } from "../_lib/shared.js";
+import { PROMPT, json, monthKey, settings, authUser, consume } from "../_lib/shared.js";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -29,7 +29,7 @@ function extractDays(text) {
 
 export async function onRequestPost({ request, env }) {
   const c = settings(env);
-  if (!c.url || !c.anon || !c.service || !c.anthropic) return json({ error: "not_configured" }, 503);
+  if (!c.url || !c.anon || !c.anthropic) return json({ error: "not_configured" }, 503);
 
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return json({ error: "forbidden" }, 403);
@@ -44,10 +44,11 @@ export async function onRequestPost({ request, env }) {
   const type = sniff(buf);
   if (!type) return json({ error: "bad_image" }, 415);
 
-  // 先に1枚ぶん使う（同時に何枚も送られても上限を超えないよう、数える処理はデータベース側で1回ずつ行う）
+  // 先に1枚ぶん使う。数え上げはデータベース側で1回ずつ行うので、同時に何枚送られても上限を超えない。
+  // 本人が減らせる関数はないため、上限を自分で戻すことはできない（読み取りに失敗した分も1枚に数える）
   const month = monthKey();
   let used;
-  try { used = await rpc(c, "ai_try_consume", { p_user: user.id, p_month: month, p_limit: c.limit }) }
+  try { used = await consume(c, user, month) }
   catch (e) { return json({ error: "server" }, 502) }
   if (typeof used !== "number") return json({ error: "server" }, 502);
   if (used < 0) return json({ error: "quota", quota: { used: c.limit, limit: c.limit } }, 429);
@@ -72,8 +73,6 @@ export async function onRequestPost({ request, env }) {
     if (!days) throw new Error("parse");
     return json({ days, quota: { used, limit: c.limit } });
   } catch (e) {
-    // 読み取れなかった分は数えない
-    try { await rpc(c, "ai_refund", { p_user: user.id, p_month: month }) } catch (_) {}
-    return json({ error: "ai_failed" }, 502);
+    return json({ error: "ai_failed", quota: { used, limit: c.limit } }, 502);
   }
 }

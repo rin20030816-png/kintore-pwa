@@ -47,7 +47,7 @@ APIキーなどの秘密の値は、**このリポジトリには入れません
 3. **Project Settings → API** を開き、次の2つを `public/config.js` に貼る（commit して push する）。
    - `Project URL` → `SUPABASE_URL`
    - `anon public` キー → `SUPABASE_ANON_KEY`
-   - ⚠ `service_role` キーは `config.js` に**絶対に入れない**（手順3 で Cloudflare にだけ入れる）。
+   - ⚠ Secret key（旧 service_role）は、このアプリでは使いません。`config.js` には**絶対に入れない**でください。
 4. **Authentication → Emails → SMTP Settings** で Custom SMTP を有効にし、Resend などの送信設定を入れる。
    - 初期設定のままだと、メールは1時間に数通しか送れず、公開すると詰まります。
    > ⚠ 実際に試したところ、Supabase の標準のメール送信のままでは、**テンプレートを編集できず**（SMTP の設定が必要）、メールも**自分のチーム以外の人には届きません**。友達にメールでログインしてもらうには、この手順 4 のカスタムSMTPが必須です。設定しない間は、**Googleログイン（手順 7）が友達向けの入口**になります。
@@ -81,7 +81,7 @@ APIキーなどの秘密の値は、**このリポジトリには入れません
    | `ANTHROPIC_API_KEY` | Anthropic の API キー | はい |
    | `SUPABASE_URL` | Project URL | いいえ |
    | `SUPABASE_ANON_KEY` | Publishable key（旧 anon public） | いいえ |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Secret key（旧 service_role）。Supabase の API Keys 画面で作る/表示する | **はい** |
+
    | `MODEL` | 省略可。初期値 `claude-haiku-5-5`。読み間違いが多ければ `claude-sonnet-5-5` | いいえ |
    | `MONTHLY_LIMIT` | 省略可。初期値 `50` | いいえ |
 
@@ -119,6 +119,6 @@ npx wrangler pages dev public --port 8788
 ## しくみのメモ
 - **保存**: 入力すると端末（localStorage）にすぐ保存し、変えた日だけ「未送信リスト」に積んで Supabase へ送ります。送れなかった分は端末に残り、つながったら自動で再送します。
 - **記録を消すとき**: 行は消さず、`entries` を空にして送ります（別の端末にも消えたことが伝わるように）。アカウントを消すときは、`delete_my_account()` が行を消します。
-- **権限**: 3つのテーブルすべてに RLS。`auth.uid() = user_id` の行だけ読み書きできます。`ai_usage` の増減は service_role だけです。
+- **権限**: 3つのテーブルすべてに RLS。`auth.uid() = user_id` の行だけ読み書きできます。`ai_usage` を増やせるのは、本人が `ai_consume_self()` を通したときだけで、減らす手段はありません（Secret key は使いません）。
 - **AI読み取り**: ブラウザは画像（縮小済みJPEG）だけを `/api/read-image` に送ります。指示文・APIキー・上限の管理はすべてサーバー側です。失敗した分は枚数に数えません。
 - **バックアップ**: `{app:"tsumitore", version:1|2, ...}` の両方を読み込めます（中身は検査してから取り込みます）。

@@ -1,4 +1,5 @@
 // Cloudflare Pages Functions の共通部品（/api/read-image と /api/usage が使う）
+// ここでは Supabase の「サービスキー」は使わない。ログインしている本人のトークンで、本人の分だけを読み書きする。
 
 // AIへの指示文。ブラウザには置かず、ここだけに持つ（好きな指示を送られて「無料のAIの入口」にされないため）
 export const PROMPT = `この画像は日本語の筋トレ記録アプリの画面です。写っている記録を読み取り、次の形のJSONだけを返してください。
@@ -18,7 +19,6 @@ export function settings(env) {
   return {
     url: String(env.SUPABASE_URL || "").replace(/\/+$/, ""),
     anon: env.SUPABASE_ANON_KEY,
-    service: env.SUPABASE_SERVICE_ROLE_KEY,
     anthropic: env.ANTHROPIC_API_KEY,
     model: env.MODEL || "claude-haiku-5-5",
     limit: Math.max(1, parseInt(env.MONTHLY_LIMIT || "50", 10) || 50)
@@ -34,26 +34,25 @@ export async function authUser(request, c) {
   const r = await fetch(c.url + "/auth/v1/user", { headers: { apikey: c.anon, authorization: "Bearer " + m[1] } });
   if (!r.ok) return null;
   const u = await r.json().catch(() => null);
-  return u && UUID.test(u.id || "") ? { id: u.id } : null;
+  return u && UUID.test(u.id || "") ? { id: u.id, token: m[1] } : null;
 }
 
-// 旧形式のキー(eyJ…のJWT)は Authorization にも付ける。新形式(sb_secret_…)は apikey だけで送る
-const svc = c => {
-  const h = { apikey: c.service, "content-type": "application/json" };
-  if (String(c.service).startsWith("eyJ")) h.authorization = "Bearer " + c.service;
-  return h;
-};
+// 本人のトークンでSupabaseを呼ぶ（行ごとの権限(RLS)が本人の行だけに絞る）
+const asUser = (c, user) => ({ apikey: c.anon, authorization: "Bearer " + user.token, "content-type": "application/json" });
 
-export async function rpc(c, name, args) {
-  const r = await fetch(c.url + "/rest/v1/rpc/" + name, { method: "POST", headers: svc(c), body: JSON.stringify(args) });
-  if (!r.ok) throw new Error("rpc " + name + " " + r.status);
-  const t = await r.text(); // 戻り値のない関数(ai_refund)は本文が空になる
+// 今月の枚数を1つ増やす。上限に達していたら -1、増やせたら今月の枚数を返す（数え上げはデータベース側で1回ずつ行う）
+export async function consume(c, user, month) {
+  const r = await fetch(c.url + "/rest/v1/rpc/ai_consume_self", {
+    method: "POST", headers: asUser(c, user), body: JSON.stringify({ p_month: month, p_limit: c.limit })
+  });
+  if (!r.ok) { const e = new Error("consume " + r.status); e.status = r.status; throw e; }
+  const t = await r.text();
   return t ? JSON.parse(t) : null;
 }
 
-export async function usedThisMonth(c, uid, month) {
-  const r = await fetch(`${c.url}/rest/v1/ai_usage?user_id=eq.${uid}&month=eq.${encodeURIComponent(month)}&select=count`, { headers: svc(c) });
-  if (!r.ok) { const e = new Error("usage " + r.status); e.status = r.status; e.body = (await r.text().catch(() => "")).slice(0, 200); throw e; }
+export async function usedThisMonth(c, user, month) {
+  const r = await fetch(`${c.url}/rest/v1/ai_usage?user_id=eq.${user.id}&month=eq.${encodeURIComponent(month)}&select=count`, { headers: asUser(c, user) });
+  if (!r.ok) { const e = new Error("usage " + r.status); e.status = r.status; throw e; }
   const rows = await r.json();
   return rows.length ? Number(rows[0].count) || 0 : 0;
 }
