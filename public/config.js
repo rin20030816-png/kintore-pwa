@@ -5,5 +5,5 @@ window.APP_CONFIG = {
   SUPABASE_URL: "https://kbkfgjmkcmieieftxmqy.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_YAFewGLpdV3_wzfnMqS7bA_GI0o51Kd",
   // スクショのAI読み取り。Cloudflareに環境変数（ANTHROPIC_API_KEY など）を入れたら true にする
-  AI_ENABLED: false
+  AI_ENABLED: true
 };
