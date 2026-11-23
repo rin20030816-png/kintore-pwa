@@ -94,7 +94,7 @@
       const [p, fl, bl, iv, ac] = await Promise.all([
         SB.from("profiles").select("display_name,share").eq("user_id", A.user.id).maybeSingle(),
         SB.rpc("list_friends"), SB.rpc("list_blocks"),
-        SB.from("friend_invites").select("token,expires_at").is("used_by", null).gt("expires_at", new Date().toISOString()).order("created_at"),
+        SB.from("friend_invites").select("token,expires_at,created_at,note").is("used_by", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
         SB.rpc("friends_activity", { p_from: rangeFrom(), p_to: today() })]);
       if (p.error || fl.error || bl.error || iv.error || ac.error) throw new Error("load");
       FR.profile = p.data || null; FR.friends = fl.data || []; FR.blocks = bl.data || []; FR.invites = iv.data || []; FR.act = ac.data || [];
@@ -150,6 +150,15 @@
   .fr-tog button[aria-pressed=true]{background:var(--ok)}
   .fr-tog button[aria-pressed=true]::after{left:23px}
   .fr-who{margin-top:10px;font-size:14px;font-weight:700;line-height:1.7}
+  .fr-new{border:2px solid var(--accent);background:rgba(255,75,31,.08);border-radius:var(--r);padding:12px;margin-top:12px;animation:frflash 1.4s ease}
+  @keyframes frflash{0%{box-shadow:0 0 0 0 rgba(255,75,31,.6)}100%{box-shadow:0 0 0 14px rgba(255,75,31,0)}}
+  .fr-tag{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:900;border-radius:99px;padding:2px 10px;margin-right:6px}
+  .fr-tag.sm{background:var(--gold);color:#1a1200}
+  .fr-memo{font-size:15px}
+  .fr-old{border-top:1px solid var(--line);padding:10px 0}
+  .fr-oldh{display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .fr-oldh small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+  @media (prefers-reduced-motion: reduce){.fr-new{animation:none}}
   `;
   document.head.appendChild(style);
 
@@ -204,11 +213,21 @@
     const p = FR.profile, since = s => { const d = new Date(s); return (d.getMonth() + 1) + "/" + d.getDate() + " から" };
     const friends = FR.friends.length ? FR.friends.map(f => `<div class="fr-fr"><span class="nm">${esc(f.display_name || "（名前なし）")}<small>${since(f.since)}${f.they_share ? "" : "　・　相手は「見せる」がOFF"}</small></span><button class="btn sm" data-fr="unfriend" data-v="${f.friend_id}" data-n="${esc(f.display_name)}">やめる</button><button class="btn sm" data-fr="block" data-v="${f.friend_id}" data-n="${esc(f.display_name)}">ブロック</button></div>`).join("") : `<p class="fr-note" style="margin:0">まだ友達がいません。</p>`;
     const blocks = FR.blocks.length ? `<h2 style="margin-top:14px">ブロック中</h2>${FR.blocks.map(b => `<div class="fr-fr"><span class="nm">${esc(b.display_name || "（名前なし）")}</span><button class="btn sm" data-fr="unblock" data-v="${b.user_id}">解除</button></div>`).join("")}` : "";
-    const inv = FR.invites.map(i => { const url = location.origin + "/f/" + i.token, left = Math.max(0, Math.ceil((new Date(i.expires_at) - Date.now()) / DAY)); return `<div class="fr-link"><code>${esc(url)}</code><button class="btn sm" data-fr="copy" data-v="${esc(url)}">コピー</button>${navigator.share ? `<button class="btn sm" data-fr="share" data-v="${esc(url)}">送る</button>` : ""}</div><p class="fr-note" style="margin:2px 0 0">あと${left}日で切れます。1人だけ使えます。</p>` }).join("");
+    const fmtT = s => { const d = new Date(s); return (d.getMonth() + 1) + "/" + d.getDate() + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) };
+    const linkRow = i => { const url = location.origin + "/f/" + i.token; return `<div class="fr-link"><code>${esc(url)}</code><button class="btn sm" data-fr="copy" data-v="${esc(url)}">コピー</button>${navigator.share ? `<button class="btn sm" data-fr="share" data-v="${esc(url)}">送る</button>` : ""}</div>` };
+    const leftDays = i => Math.max(0, Math.ceil((new Date(i.expires_at) - Date.now()) / DAY));
+    const sorted = FR.invites.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const fresh = FR.newInvite ? sorted.find(i => i.token === FR.newInvite) : null;
+    const rest = sorted.filter(i => i !== fresh);
+    const full = sorted.length >= 5;
+    const freshBox = fresh ? `<div id="fr-new" class="fr-new"><span class="fr-tag">いま作ったリンク</span>${fresh.note ? `<b class="fr-memo">${esc(fresh.note)}用</b>` : ""}${linkRow(fresh)}<p class="fr-note" style="margin:6px 0 0">このリンクは<b>1人だけ</b>使えます。次の友達には、もう一度「新しいリンクを作る」を押して、別のリンクを作ってください。</p></div>` : "";
+    const restBox = rest.length ? `<h2 style="margin:16px 0 6px">使っていないリンク（${sorted.length}/5本）</h2>${rest.map((i, k) => `<div class="fr-old"><div class="fr-oldh"><span>${k === 0 && !fresh ? `<span class="fr-tag sm">いちばん新しい</span>` : ""}<b>${i.note ? esc(i.note) + "用" : "メモなし"}</b><small>${fmtT(i.created_at)} に作成 ・ あと${leftDays(i)}日</small></span><button class="btn sm" data-fr="revoke" data-v="${esc(i.token)}">削除</button></div>${linkRow(i)}</div>`).join("")}` : "";
     return `<div class="card"><h2>友達を招待する</h2>
-        <p class="fr-note" style="margin:0 0 8px">LINEやDMで、友達にだけリンクを送ってください。リンクは、<b>1人だけ使えて、7日で切れます</b>。友達がリンクを開いて、ログインして「友達になる」を押すと、その場で友達になります。</p>
-        <button class="btn grad" data-fr="invite" style="width:100%;padding:12px" ${FR.busy ? "disabled" : ""}>招待リンクを作る</button>
-        ${inv}<p class="fr-note">友達は最大30人です（いま ${FR.friends.length}人）。名前やメールアドレスで、友達を探すことはできません。</p></div>
+        <p class="fr-note" style="margin:0 0 8px">1人の友達につき、1本のリンクを作って送ります。リンクは、<b>1人だけ使えて、7日で切れます</b>。使われると、自動で「使用済み」になって、この一覧から消えます。友達が増えたら、そのたびに、新しいリンクを作ってください。</p>
+        <div class="fr-name"><input id="fr-invnote" maxlength="12" placeholder="だれに送る？（メモ・任意）" aria-label="招待のメモ"><button class="btn grad" data-fr="invite" ${FR.busy || full ? "disabled" : ""}>新しいリンクを作る</button></div>
+        <p class="fr-note" style="margin:4px 0 0">メモは、あなただけに見えます（友達には見えません）。${full ? "<b>使っていないリンクが5本あるので、いまは新しく作れません。使われるか、削除すると、作れます。</b>" : ""}</p>
+        ${freshBox}${restBox}
+        <p class="fr-note">友達は最大30人です（いま ${FR.friends.length}人）。名前やメールアドレスで、友達を探すことはできません。</p></div>
       <div class="card"><h2>友達</h2>${friends}${blocks}
         <p class="fr-note">「やめる」でおたがいに見えなくなります。「ブロック」すると、友達から消えて、招待も使えなくなります。</p></div>
       <div class="card"><h2>あなたの設定</h2>
@@ -247,14 +266,19 @@
     FR.msg = ""; FR.loaded = false; load();
   }
   async function doInvite() {
-    if (FR.busy) return; FR.busy = true; render();
-    const r = await SB.rpc("create_invite"); FR.busy = false;
+    if (FR.busy) return;
+    const memo = String((document.getElementById("fr-invnote") || {}).value || "").trim();   // 画面を描き直す前に、メモを読む
+    if ([...memo].length > 12) return say("メモは12文字までです。");
+    FR.busy = true; render();
+    const r = await SB.rpc("create_invite", { p_note: memo || null }); FR.busy = false;
     if (r.error) {
       const m = String(r.error.message || "");
-      say(/friends_full/.test(m) ? "友達が30人います。これ以上は招待できません。" : /too_many_invites/.test(m) ? "使っていない招待が5本あります。使われるか、期限が切れるのを待ってください。" : /need_profile/.test(m) ? "先に、表示名を決めてください。" : "リンクを作れませんでした。もう一度お試しください。");
+      say(/friends_full/.test(m) ? "友達が30人います。これ以上は招待できません。" : /too_many_invites/.test(m) ? "使っていないリンクが5本あります。使われるか、削除すると、新しく作れます。" : /need_profile/.test(m) ? "先に、表示名を決めてください。" : "リンクを作れませんでした。もう一度お試しください。");
       return;
     }
+    FR.newInvite = (r.data && r.data[0] && r.data[0].token) || null;
     await load();
+    setTimeout(() => { const el = document.getElementById("fr-new"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }) }, 80);
   }
   async function copyText(t) { try { await navigator.clipboard.writeText(t); toast("リンクをコピーしました") } catch (e) { window.prompt("このリンクをコピーしてください", t) } }
   async function shareLink(url) {
@@ -289,6 +313,7 @@
     else if (a === "unfriend") { if (await askChoice("友達をやめる", `${b.dataset.n || "この人"}さんと、友達をやめますか？ おたがいに見えなくなります。`, [{ label: "友達をやめる", value: true, pri: true }, { label: "やめない", value: false }])) rpcDo("remove_friend", { p_friend: v }, "友達をやめました") }
     else if (a === "block") { if (await askChoice("ブロックする", `${b.dataset.n || "この人"}さんをブロックしますか？ 友達から消えて、招待も使えなくなります。相手には知らせません。`, [{ label: "ブロックする", value: true, pri: true }, { label: "やめる", value: false }])) rpcDo("block_user", { p_user: v }, "ブロックしました") }
     else if (a === "unblock") rpcDo("unblock_user", { p_user: v }, "ブロックを解除しました");
+    else if (a === "revoke") { if (await askChoice("リンクを削除", "このリンクを削除しますか？ まだ使われていなければ、このリンクでは、友達になれなくなります。", [{ label: "削除する", value: true, pri: true }, { label: "やめる", value: false }])) { if (FR.newInvite === v) FR.newInvite = null; rpcDo("revoke_invite", { p_token: v }, "リンクを削除しました") } }
   });
 
   /* ---------- 招待リンクから来たとき ---------- */

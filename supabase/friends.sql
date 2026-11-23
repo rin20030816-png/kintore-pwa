@@ -38,8 +38,12 @@ create table if not exists public.friend_invites (
   expires_at timestamptz not null default (now() + interval '7 days'),
   used_by    uuid references auth.users(id) on delete set null,
   used_at    timestamptz,
-  acked      boolean not null default false
+  acked      boolean not null default false,
+  note       text check (note is null or char_length(note) <= 12)   -- 「だれに送るリンクか」の自分用メモ（友達には見えない）
 );
+alter table public.friend_invites add column if not exists note text;
+alter table public.friend_invites drop constraint if exists friend_invites_note_len;
+alter table public.friend_invites add constraint friend_invites_note_len check (note is null or char_length(note) <= 12);
 create index if not exists friend_invites_inviter_idx on public.friend_invites (inviter);
 
 -- 1日ごとの「行った日」と「ポイント」（友達に見せるのは、この2つだけ）
@@ -104,19 +108,29 @@ $$;
 revoke all on function public._friend_count(uuid) from public, anon, authenticated;
 
 -- 招待リンクを作る（友達が30人のとき・未使用の招待が5本あるときは作れない）
-create or replace function public.create_invite()
+drop function if exists public.create_invite();
+create or replace function public.create_invite(p_note text default null)
 returns table (token text, expires_at timestamptz)
 language plpgsql security definer set search_path = '' as $$
-declare uid uuid := auth.uid(); t text; ex timestamptz;
+declare uid uuid := auth.uid(); t text; ex timestamptz; nt text := nullif(btrim(coalesce(p_note, '')), '');
 begin
   if uid is null then raise exception 'not signed in'; end if;
   if not exists (select 1 from public.profiles where user_id = uid) then raise exception 'need_profile'; end if;
+  if nt is not null and char_length(nt) > 12 then raise exception 'note_too_long'; end if;
   if public._friend_count(uid) >= 30 then raise exception 'friends_full'; end if;
   delete from public.friend_invites fi where fi.inviter = uid and fi.used_by is null and fi.expires_at < now();
   if (select count(*) from public.friend_invites fi where fi.inviter = uid and fi.used_by is null) >= 5 then raise exception 'too_many_invites'; end if;
   t := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
-  insert into public.friend_invites (inviter, token) values (uid, t) returning friend_invites.expires_at into ex;
+  insert into public.friend_invites (inviter, token, note) values (uid, t, nt) returning friend_invites.expires_at into ex;
   return query select t, ex;
+end $$;
+
+-- まだ使われていない自分の招待リンクを、取り消す（消す）
+create or replace function public.revoke_invite(p_token text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  delete from public.friend_invites fi where fi.token = lower(btrim(p_token)) and fi.inviter = auth.uid() and fi.used_by is null;
 end $$;
 
 -- 招待リンクを開いたとき、「だれからの招待か」を見せるために確かめる（まだ友達にはならない）
@@ -247,7 +261,7 @@ do $$
 declare f text;
 begin
   foreach f in array array[
-    'create_invite()', 'peek_invite(text)', 'accept_invite(text)', 'take_invite_news()', 'list_friends()',
+    'create_invite(text)', 'revoke_invite(text)', 'peek_invite(text)', 'accept_invite(text)', 'take_invite_news()', 'list_friends()',
     'remove_friend(uuid)', 'block_user(uuid)', 'unblock_user(uuid)', 'list_blocks()', 'friends_activity(date, date)'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
