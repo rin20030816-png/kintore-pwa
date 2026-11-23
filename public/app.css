@@ -153,6 +153,17 @@ button.tile:hover{border-color:var(--muted)}
 /* calendar */
 .cal-head{display:flex;align-items:center;gap:8px}
 .cal-head strong{flex:1;text-align:center;font-family:var(--f-display);font-size:28px;font-weight:800;letter-spacing:.06em}
+.mon-title{flex:1;border:0;background:transparent;color:inherit;text-align:center;font-family:var(--f-display);font-size:28px;font-weight:800;letter-spacing:.06em;padding:2px 0;border-radius:var(--r)}
+.mon-title small{font-size:14px;color:var(--muted);margin-left:2px}
+.mon-title:hover{background:var(--s2)}
+.mp{margin-top:10px;padding:10px;background:var(--s2);border:1px solid var(--line);border-radius:var(--r)}
+.mp-year{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mp-year b{flex:1;text-align:center;font-family:var(--f-display);font-size:22px;font-weight:800;letter-spacing:.06em}
+.mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mp-grid button{position:relative;padding:12px 4px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font-weight:900;font-size:15px;color:var(--muted)}
+.mp-grid button.has{color:var(--ink)}
+.mp-grid button.has::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.mp-grid button.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:#fff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px}
 .cal .wd{font-size:11px;color:var(--muted);text-align:center;font-weight:700}
 .cal .wd.sat{color:var(--p-back)} .cal .wd.sun{color:var(--accent)}

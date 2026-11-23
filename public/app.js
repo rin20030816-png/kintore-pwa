@@ -262,7 +262,15 @@ function vCal(){
       const ps=[...new Set(list.map(e=>partOf(e.name)))];style=`style="background:${calBg(ps)}"`;
       dots=ps.map(p=>`<i class="dot" style="--pc:var(${PVAR[p]})"></i>`).join("")}
     cells+=`<button data-a="goto" data-v="${k}" class="${list.length?"on":""}${k===t?" today":""}" ${style} aria-label="${m}月${d}日${list.length?" 記録あり":""}"><span class="d">${d}</span><span class="dots">${dots}</span></button>`}
-  return `<div class="card"><div class="cal-head"><button class="btn" data-a="mon" data-v="-1" aria-label="前の月">‹</button><strong>${y}年 ${m}月</strong><button class="btn" data-a="mon" data-v="1" aria-label="次の月">›</button></div>
+  // 年月を押すと、月をえらんで一気に飛べる（記録のある月には点がつく）
+  const hasMon=new Set(Object.keys(S.days).filter(k=>S.days[k].some(e=>e.sets.length)).map(k=>k.slice(0,7)));
+  const minY=Math.min(y,Number(today().slice(0,4)),...[...hasMon].map(k=>Number(k.slice(0,4)))),maxY=Math.max(y,Number(today().slice(0,4)));
+  const py=Math.min(maxY,Math.max(minY,S.pickY||y));
+  const picker=S.monPick?`<div class="mp" role="group" aria-label="月をえらぶ"><div class="mp-year"><button class="btn" data-a="mpy" data-v="-1" aria-label="前の年" ${py<=minY?"disabled":""}>‹</button><b>${py}年</b><button class="btn" data-a="mpy" data-v="1" aria-label="次の年" ${py>=maxY?"disabled":""}>›</button></div>
+      <div class="mp-grid">${Array.from({length:12},(_,i)=>{const ym=py+"-"+pad(i+1);return `<button data-a="mpick" data-v="${ym}" class="${hasMon.has(ym)?"has ":""}${ym===S.month?"cur":""}" aria-label="${py}年${i+1}月${hasMon.has(ym)?" 記録あり":""}">${i+1}月</button>`}).join("")}</div>
+      <button class="btn" data-a="mpthis" style="margin-top:8px;width:100%">今月にもどる</button></div>`:"";
+  return `<div class="card"><div class="cal-head"><button class="btn" data-a="mon" data-v="-1" aria-label="前の月">‹</button><button class="mon-title" data-a="monpick" aria-expanded="${S.monPick?"true":"false"}" aria-label="月をえらぶ（いま${y}年${m}月）">${y}年 ${m}月 <small>${S.monPick?"▴":"▾"}</small></button><button class="btn" data-a="mon" data-v="1" aria-label="次の月">›</button></div>
+    ${picker}
     <div class="cal">${cells}</div>
     <div class="legend">${PARTS.map(p=>`<span><i class="dot" style="--pc:var(${PVAR[p]})"></i>${p}</span>`).join("")}</div></div>
   <div class="tiles" style="grid-template-columns:repeat(3,1fr)"><div class="tile t1"><b>${days}</b><span>日トレーニング</span></div><div class="tile t2"><b>${fmt(vol/1000)}t</b><span>総負荷量</span></div><div class="tile t3"><b>${wk.streak}</b><span>週連続で目標達成</span></div></div>
@@ -996,13 +1004,17 @@ document.addEventListener("click",ev=>{
   const list=S.days[S.date]||[];
   if(a!=="delex")S.armed=null;
   switch(a){
-    case "tab":commitSel();S.tab=v;S.note="";break;
+    case "tab":commitSel();S.tab=v;S.note="";S.monPick=false;break;
     case "menu":S.menu=v;S.note="";break;
     case "gomenu":commitSel();S.tab="menu";S.menu=v;break;
     case "day":commitSel();S.date=shift(S.date,+v);S.bwEdit=false;break;
     case "today":commitSel();S.date=today();S.bwEdit=false;break;
     case "goto":S.date=v;S.tab="log";S.sel=null;break;
     case "mon":{const d=parse(S.month+"-01");d.setMonth(d.getMonth()+(+v));S.month=iso(d).slice(0,7);break}
+    case "monpick":S.monPick=!S.monPick;S.pickY=Number(S.month.slice(0,4));break;
+    case "mpy":S.pickY=(S.pickY||Number(S.month.slice(0,4)))+Number(v);break;
+    case "mpick":S.month=v;S.monPick=false;break;
+    case "mpthis":S.month=today().slice(0,7);S.monPick=false;break;
     case "metric":S.gMetric=v;break;
     case "sel":{if(S.sel&&S.sel.i===i&&S.sel.j===j)break;commitSel();S.sel={i,j};render();return scrollToEditor()}
     case "done":commitSel();break;
