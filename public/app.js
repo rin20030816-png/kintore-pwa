@@ -197,7 +197,7 @@ function cardioEditor(e,i,j){
     <div class="steps">${D_STEPS.map(v=>`<button class="m" data-a="dstep" data-v="-${v}" aria-label="${v}キロ減らす">−${v}</button>`).join("")}${D_STEPS.map(v=>`<button class="p" data-a="dstep" data-v="${v}" aria-label="${v}キロ増やす">＋${v}</button>`).join("")}</div>
     ${isWalkRun(e.name)?(()=>{const k=kcalOf(e.name,s,S.date);return `<div class="ed-line"><label for="ed-i">傾斜</label><input id="ed-i" data-f="eincl" inputmode="decimal" value="${s.i??""}" placeholder="0"><span class="unit">%</span><span class="ed-note">${k&&k.v?`速度 ${fmt(r2(k.v))} km/h`:"マシンの傾斜。なければ空欄"}</span></div>
     <div class="steps">${I_STEPS.map(v=>`<button class="m" data-a="istep" data-v="-${v}" aria-label="傾斜を${v}減らす">−${v}</button>`).join("")}${I_STEPS.map(v=>`<button class="p" data-a="istep" data-v="${v}" aria-label="傾斜を${v}増やす">＋${v}</button>`).join("")}</div>
-    <div class="kcalbox${k&&k.kcal!=null?"":" need"}">${k&&k.kcal!=null?`<span><b>約 ${fmt(k.kcal)}</b> kcal</span><small>うち運動ぶん 約 ${fmt(k.net)} kcal ／ 安静時を含む目安です</small>`:`<small>${k?k.need:""}</small>`}</div>`})():""}
+    <div class="kcalbox${k&&k.kcal!=null?"":" need"}">${k&&k.kcal!=null?`<span><b>約 ${fmt(k.kcal)}</b> kcal</span><small>消費カロリーの目安</small>`:`<small>${k?k.need:""}</small>`}</div>`})():""}
     <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="done">完了</button></div>
   </div>`;
 }
