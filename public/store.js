@@ -24,6 +24,7 @@ function cleanSet(s){
   const o={w:numIn(s.w,0,5000),r:numIn(s.r,0,10000)};
   if(s.t!=null){const t=numIn(s.t,0,10000);if(t!=null)o.t=t}
   if(s.d!=null){const d=numIn(s.d,0,100000);if(d!=null)o.d=d}
+  if(s.i!=null){const i=numIn(s.i,0,30);if(i!=null&&i>0)o.i=i}   // 傾斜（%）。ウォーキング・ランニングの消費カロリー用
   if(s.a)o.a=true;
   return o;
 }

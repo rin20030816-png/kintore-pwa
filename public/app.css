@@ -323,3 +323,9 @@ th.r{text-align:right}
 .exbtn small{font-size:11px;color:var(--muted);font-weight:700}
 .exbtn.done{opacity:.45;cursor:default}
 @media (min-width:560px){.exgrid{grid-template-columns:repeat(3,1fr)}}
+
+/* 有酸素（ウォーキング・ランニング）: 消費カロリーの目安 */
+.kcalbox{margin:8px 0 4px;padding:10px 12px;border-radius:var(--r);background:color-mix(in srgb,var(--p-cardio) 14%,transparent);border-left:4px solid var(--p-cardio);display:flex;flex-direction:column;gap:2px}
+.kcalbox b{font-size:22px;font-weight:900}
+.kcalbox small{font-size:11px;color:var(--muted);font-weight:700;line-height:1.5}
+.kcalbox.need{background:var(--bg);border-left-color:var(--line)}

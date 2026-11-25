@@ -19,6 +19,7 @@ const CMETRICS=[["time","時間","分"],["dist","距離","km"]];
 const W_STEPS=[2.5,5,10,30];
 const T_STEPS=[1,5,10,30];
 const D_STEPS=[0.1,0.5,1,5];
+const I_STEPS=[0.5,1,5];
 // あらかじめ登録しておく代表的な種目（部位ごと）。bw=自重
 const PRESETS={
   "胸":["ベンチプレス","インクラインベンチプレス","デクラインベンチプレス","ダンベルプレス","インクラインダンベルプレス","ダンベルフライ","インクラインダンベルフライ","チェストプレス","ペックフライ","ケーブルクロスオーバー","スミスマシンベンチプレス",["ディップス"],["腕立て伏せ"]],
@@ -69,6 +70,25 @@ const exOf=name=>S.ex.find(x=>x.name===name);
 const partOf=name=>(exOf(name)||{}).part||"その他";
 const isBW=name=>!!(exOf(name)||{}).bw;
 const isCardio=name=>partOf(name)==="有酸素";
+/* ---- 消費カロリーの目安（ウォーキング・ランニング系のみ。水泳・バイクなどは対象外） ----
+   速度 = 距離 ÷ 時間。式は、運動生理学でよく使われる ACSM の歩行・走行の式
+   （酸素摂取量 ml/kg/分 = 水平分 + 傾斜分 + 安静 3.5）。歩行 6km/h 以下、走行 8km/h 以上で、その間は混ぜる。
+   酸素 1L ≒ 5kcal。安静時の分も含む（マシンの表示に近い）。あくまで目安。 */
+const WALKRUN_RE=/ウォーキング|散歩|ランニング|ジョギング|トレッドミル|^ラン$/;
+const isWalkRun=name=>isCardio(name)&&WALKRUN_RE.test(name);
+function kcalOf(name,s,date){
+  if(!isWalkRun(name))return null;
+  const bw=bwAt(date);
+  if(!(s.t>0)||!(s.d>0))return{need:"距離と時間を入れると、カロリーの目安が出ます"};
+  if(!bw)return{need:"体重を入れると、カロリーの目安が出ます"};
+  const v=s.d/(s.t/60);                              // km/h
+  if(v>25)return{need:"速度が速すぎるので、計算できません（距離と時間を確認してください）"};
+  const m=v*1000/60,g=(s.i||0)/100;                  // m/分、傾斜（割合）
+  const walk=0.1*m+1.8*m*g+3.5,run=0.2*m+0.9*m*g+3.5;
+  const w=v<=6?0:v>=8?1:(v-6)/2,vo2=walk*(1-w)+run*w;
+  const kcal=vo2*bw/1000*5*s.t,net=(vo2-3.5)*bw/1000*5*s.t;
+  return{kcal:Math.round(kcal),net:Math.round(net),v};
+}
 const pace=s=>{if(!(s.t>0&&s.d>0))return null;const v=s.t/s.d,m=Math.floor(v),sec=Math.round((v-m)*60);return sec===60?`${m+1}:00`:`${m}:${pad(sec)}`};
 function setText(name,s){if(isCardio(name))return `${s.t??"-"}分${s.d!=null?" "+fmt(s.d)+"km":""}`;return wText(name,s)+"×"+(s.r??"-")}
 function ensureEx(name,quiet){if(!exOf(name)){const o={name,part:guess(name)};if(BW_RE.test(name))o.bw=true;S.ex.push(o);if(!quiet)saveMeta()}}
@@ -175,21 +195,24 @@ function cardioEditor(e,i,j){
     <div class="steps">${T_STEPS.map(v=>`<button class="m" data-a="tstep" data-v="-${v}" aria-label="${v}分減らす">−${v}</button>`).join("")}${T_STEPS.map(v=>`<button class="p" data-a="tstep" data-v="${v}" aria-label="${v}分増やす">＋${v}</button>`).join("")}</div>
     <div class="ed-line"><label for="ed-d">距離</label><input id="ed-d" data-f="edist" inputmode="decimal" value="${s.d??""}" placeholder="-"><span class="unit">km</span><span class="ed-note">${pc?`ペース ${pc} /km`:"距離は空欄でもOK"}</span></div>
     <div class="steps">${D_STEPS.map(v=>`<button class="m" data-a="dstep" data-v="-${v}" aria-label="${v}キロ減らす">−${v}</button>`).join("")}${D_STEPS.map(v=>`<button class="p" data-a="dstep" data-v="${v}" aria-label="${v}キロ増やす">＋${v}</button>`).join("")}</div>
+    ${isWalkRun(e.name)?(()=>{const k=kcalOf(e.name,s,S.date);return `<div class="ed-line"><label for="ed-i">傾斜</label><input id="ed-i" data-f="eincl" inputmode="decimal" value="${s.i??""}" placeholder="0"><span class="unit">%</span><span class="ed-note">${k&&k.v?`速度 ${fmt(r2(k.v))} km/h`:"マシンの傾斜。なければ空欄"}</span></div>
+    <div class="steps">${I_STEPS.map(v=>`<button class="m" data-a="istep" data-v="-${v}" aria-label="傾斜を${v}減らす">−${v}</button>`).join("")}${I_STEPS.map(v=>`<button class="p" data-a="istep" data-v="${v}" aria-label="傾斜を${v}増やす">＋${v}</button>`).join("")}</div>
+    <div class="kcalbox${k&&k.kcal!=null?"":" need"}">${k&&k.kcal!=null?`<span><b>約 ${fmt(k.kcal)}</b> kcal</span><small>うち運動ぶん 約 ${fmt(k.net)} kcal ／ 安静時を含む目安です</small>`:`<small>${k?k.need:""}</small>`}</div>`})():""}
     <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="done">完了</button></div>
   </div>`;
 }
-function cardioRow(e,i,j,on){const s=e.sets[j],pc=pace(s);
+function cardioRow(e,i,j,on){const s=e.sets[j],pc=pace(s),kc=kcalOf(e.name,s,S.date);
   return `<div class="set${on?" on":""}" data-a="sel" data-i="${i}" data-j="${j}" role="button" tabindex="0" aria-label="${j+1}本目を編集">
       <span class="n">${j+1}</span>
       <span class="v"><b>${s.t??"-"}</b><small>分</small></span><span>/</span>
       <span class="v"><b>${s.d!=null?fmt(s.d):"-"}</b><small>km</small></span>
-      <span class="ow">${pc?`<span class="one">${pc} /km</span>`:""}</span>
+      <span class="ow">${pc?`<span class="one">${pc} /km</span>`:""}${s.i?`<span class="one">傾斜${fmt(s.i)}%</span>`:""}${kc&&kc.kcal!=null?`<span class="one">約${fmt(kc.kcal)}kcal</span>`:""}</span>
       <button class="x" data-a="delset" data-i="${i}" data-j="${j}" aria-label="${j+1}本目を消す">×</button></div>${on?cardioEditor(e,i,j):""}`}
 function exCard(e,i){
   if(isCardio(e.name)){
     const st=exStats(e,S.date),pv=prevOf(e.name,S.date);
     return `<section class="ex" style="--pc:var(--p-cardio)">
-    <header><span class="chip">有酸素</span><h3>${esc(e.name)}</h3><span class="rm"><b>${st.time}</b>分${st.dist?` <b>${fmt(st.dist)}</b>km`:""}</span></header>
+    <header><span class="chip">有酸素</span><h3>${esc(e.name)}</h3><span class="rm"><b>${st.time}</b>分${st.dist?` <b>${fmt(st.dist)}</b>km`:""}${(()=>{const kt=e.sets.reduce((a,s)=>{const k=kcalOf(e.name,s,S.date);return a+(k&&k.kcal||0)},0);return kt?` <b>約${fmt(kt)}</b>kcal`:""})()}</span></header>
     <div class="prev"><span>${pv?`前回 ${md(pv.date)}　${pv.e.sets.map(s=>setText(e.name,s)).join("、")}`:"前回の記録なし"}</span>${pv?`<button class="btn sm" data-a="copyprev" data-i="${i}">前回をコピー</button>`:""}</div>
     <div class="sets">${e.sets.map((s,j)=>cardioRow(e,i,j,S.sel&&S.sel.i===i&&S.sel.j===j)).join("")}</div>
     <div class="row" style="margin-top:8px"><button class="btn sm grad" data-a="addset" data-i="${i}">＋ 追加</button>
@@ -1037,6 +1060,7 @@ document.addEventListener("click",ev=>{
     case "rstep":{const s=curSet();if(!s)return;s.r=Math.max(0,(s.r||0)+Number(v))||null;saveDay(S.date);break}
     case "rset":{const s=curSet();if(!s)return;s.r=Number(v);saveDay(S.date);break}
     case "tstep":{const s=curSet();if(!s)return;s.t=Math.max(0,(s.t||0)+Number(v))||null;saveDay(S.date);break}
+    case "istep":{const s=curSet();if(!s)return;const n=Math.min(30,Math.max(0,r2((s.i||0)+Number(v))));if(n>0)s.i=n;else delete s.i;saveDay(S.date);break}
     case "dstep":{const s=curSet();if(!s)return;s.d=Math.max(0,r2((s.d||0)+Number(v)))||null;saveDay(S.date);break}
     case "assist":{const s=curSet();if(!s)return;if(s.a)delete s.a;else s.a=true;saveDay(S.date);break}
     case "addpart":S.addPart=S.addPart===v?null:v;break;
@@ -1044,7 +1068,7 @@ document.addEventListener("click",ev=>{
     case "addex":return addToDay(document.getElementById("add-ex").value);
     case "addnew":{const n=document.getElementById("add-new").value.trim(),p=document.getElementById("add-part").value,bw=document.getElementById("add-bw").checked;if(!n)return;
       if(!exOf(n)){S.ex.push({name:n,part:p||guess(n),...(bw||BW_RE.test(n)?{bw:true}:{})});saveMeta()}return addToDay(n)}
-    case "addset":{commitSel();const e=list[i],l=e.sets[e.sets.length-1];e.sets.push(isCardio(e.name)?{t:l?l.t:30,d:null}:{w:l?l.w:(isBW(e.name)?0:null),r:null});saveDay(S.date);S.sel={i,j:e.sets.length-1};render();return scrollToEditor()}
+    case "addset":{commitSel();const e=list[i],l=e.sets[e.sets.length-1];e.sets.push(isCardio(e.name)?{t:l?l.t:30,d:null,...(l&&l.i?{i:l.i}:{})}:{w:l?l.w:(isBW(e.name)?0:null),r:null});saveDay(S.date);S.sel={i,j:e.sets.length-1};render();return scrollToEditor()}
     case "delset":if(S.sel&&S.sel.i===i)S.sel=null;list[i].sets.splice(j,1);saveDay(S.date);break;
     case "copyprev":{const pv=prevOf(list[i].name,S.date);if(pv)list[i].sets=pv.e.sets.map(s=>{const o={...s};delete o.a;return o});S.sel=null;saveDay(S.date);break}
     case "delex":if(S.armed==="ex"+i){list.splice(i,1);S.armed=null;S.sel=null;saveDay(S.date)}else S.armed="ex"+i;break;
@@ -1091,6 +1115,11 @@ document.addEventListener("change",ev=>{
     const s=curSet();if(!s)return;const n=t.value.trim()===""?null:Number(t.value.replace(",","."));
     if(n!=null&&(isNaN(n)||n<0)){t.value=(f==="et"?s.t:s.d)??"";return}
     if(f==="et")s.t=n?Math.round(n):null;else s.d=n?r2(n):null;saveDay(S.date);return render();
+  }
+  if(f==="eincl"){
+    const s=curSet();if(!s)return;const n=t.value.trim()===""?null:Number(t.value.replace(",","."));
+    if(n!=null&&(isNaN(n)||n<0||n>30)){t.value=s.i??"";return}
+    if(n)s.i=r2(n);else delete s.i;saveDay(S.date);return render();
   }
   if(f==="part"){S.ex[+t.dataset.i].part=t.value;saveMeta();return render()}
   if(f==="exbw"){const e=S.ex[+t.dataset.i];if(t.checked)e.bw=true;else delete e.bw;saveMeta();return render()}
