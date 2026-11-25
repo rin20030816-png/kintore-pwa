@@ -56,6 +56,8 @@ function cleanSettings(s){
   const goal=Math.round(Number(s.goal)),step=Number(s.step),o={goal:goal>=1&&goal<=7?goal:3,step:[5,10,20].includes(step)?step:10};
   if(typeof s.sound==="boolean")o.sound=s.sound;
   const pv=Math.floor(Number(s.presetV));if(pv>0&&pv<1000)o.presetV=pv;
+  if(["mofu","puru","piyo"].includes(s.pet))o.pet=s.pet;             // 育てるキャラ
+  const pl=Math.floor(Number(s.petLv));if(s.petLv!=null&&pl>=0&&pl<=20)o.petLv=pl;  // 進化の演出を見せた段階
   return o;
 }
 function applyMeta(m){S.ex=cleanEx(m.exercises);S.bw=cleanBw(m.bodyweight);S.settings=cleanSettings(m.settings)}
