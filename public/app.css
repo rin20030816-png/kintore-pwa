@@ -309,3 +309,17 @@ th.r{text-align:right}
 /* confirm dialog (login merge / sign-out) */
 #dlg{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,5,8,.88)}
 .msg a{color:var(--ink)}
+
+/* 種目を足す（部位を選ぶ → 一覧から1タップ） */
+.pchips{display:flex;flex-wrap:wrap;gap:8px}
+.pchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:8px 12px;font:inherit;font-weight:900;font-size:14px;cursor:pointer;min-height:40px}
+.pchip .dot{width:9px;height:9px;border-radius:50%;background:var(--pc);display:inline-block}
+.pchip small{color:var(--muted);font-weight:700;font-size:11px}
+.pchip.on{background:var(--pc);border-color:var(--pc);color:#111}
+.pchip.on .dot{background:#111}.pchip.on small{color:#111;opacity:.7}
+.exgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.exbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);border-left:4px solid var(--pc,var(--line));background:var(--bg);color:var(--ink);border-radius:var(--r);padding:10px 10px;font:inherit;cursor:pointer;min-height:56px}
+.exbtn b{font-size:14px;line-height:1.3;word-break:break-all}
+.exbtn small{font-size:11px;color:var(--muted);font-weight:700}
+.exbtn.done{opacity:.45;cursor:default}
+@media (min-width:560px){.exgrid{grid-template-columns:repeat(3,1fr)}}

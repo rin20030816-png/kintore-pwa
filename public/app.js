@@ -221,6 +221,22 @@ function monthBanner(){
   if(!ym||!trainedDates().some(x=>x.startsWith(ym)))return "";
   return `<div class="banner"><b>${Number(ym.slice(5))}月の振り返りカードができました</b><button class="btn sm" data-a="monthcard" data-v="${ym}">見る</button></div>`;
 }
+// 種目を足す: 先に部位を選び、その部位の種目を一覧から1タップで足す（最近使った順）
+function exPicker(list){
+  const used=new Set(list.map(l=>l.name)),last={};
+  Object.keys(S.days).forEach(d=>{S.days[d].forEach(e=>{if(e.sets.length&&(!last[e.name]||d>last[e.name]))last[e.name]=d})});
+  const cnt=p=>S.ex.filter(e=>e.part===p).length;
+  const chips=PARTS.filter(p=>cnt(p)).map(p=>`<button class="pchip${S.addPart===p?" on":""}" style="--pc:var(${PVAR[p]})" data-a="addpart" data-v="${p}" aria-pressed="${S.addPart===p}"><i class="dot"></i>${p}<small>${cnt(p)}</small></button>`).join("");
+  let body=`<p class="muted" style="margin:8px 0 0">部位を選ぶと、その種目が出ます。</p>`;
+  if(S.addPart){
+    const xs=S.ex.filter(e=>e.part===S.addPart).sort((a,b)=>(last[b.name]||"").localeCompare(last[a.name]||"")||a.name.localeCompare(b.name,"ja"));
+    const ago=n=>{const d=last[n];if(!d)return"未記録";const k=Math.round((parse(today())-parse(d))/864e5);return k<=0?"今日":k+"日前"};
+    body=`<div class="exgrid" role="list">${xs.map(e=>used.has(e.name)
+      ?`<button class="exbtn done" disabled role="listitem"><b>${esc(e.name)}</b><small>✓ 追加済み</small></button>`
+      :`<button class="exbtn" role="listitem" data-a="addpick" data-v="${esc(e.name)}" style="--pc:var(${PVAR[S.addPart]})"><b>${esc(e.name)}</b><small>前回 ${ago(e.name)}</small></button>`).join("")}</div>`;
+  }
+  return `<div class="pchips" role="group" aria-label="部位を選ぶ">${chips}</div>${body}`;
+}
 function vLog(){
   const list=S.days[S.date]||[],st=dayStats(list,S.date),wk=weekInfo(),since=partSince(),body=S.bw[S.date],bodyAt=bwAt(S.date);
   const opts=PARTS.map(p=>{const xs=S.ex.filter(e=>e.part===p&&!list.find(l=>l.name===e.name));return xs.length?`<optgroup label="${p}">${xs.map(e=>`<option>${esc(e.name)}</option>`).join("")}</optgroup>`:""}).join("");
@@ -243,9 +259,8 @@ function vLog(){
     :(!Object.keys(S.bw).length&&list.some(e=>isBW(e.name))?`<div class="banner" style="border-left-color:var(--p-abs)"><b>体重を入れると、自重種目の総負荷量とRMが計算されます</b><button class="btn sm" data-a="bwopen">体重を入れる</button></div>`:"")}
   ${list.length?list.map(exCard).join(""):`<p class="empty">この日の記録はまだありません。下から種目を足してください。</p>`}
   <div class="card"><h2>種目を足す</h2>
-    <div class="row"><select class="field" id="add-ex" style="flex:1" aria-label="登録済みの種目"><option value="">登録済みから選ぶ</option>${opts}</select>
-    <button class="btn pri" data-a="addex">追加</button></div>
-    <div class="row" style="margin-top:8px"><input class="field" id="add-new" placeholder="新しい種目名" style="flex:1" aria-label="新しい種目名">
+    ${exPicker(list)}
+    <div class="row" style="margin-top:12px"><input class="field" id="add-new" placeholder="新しい種目名" style="flex:1" aria-label="新しい種目名">
     <select class="field" id="add-part" aria-label="部位"><option value="">部位は自動</option>${PARTS.map(p=>`<option>${p}</option>`).join("")}</select>
     <label class="muted"><input type="checkbox" id="add-bw"> 自重</label>
     <button class="btn" data-a="addnew">登録して追加</button></div>
@@ -1024,6 +1039,8 @@ document.addEventListener("click",ev=>{
     case "tstep":{const s=curSet();if(!s)return;s.t=Math.max(0,(s.t||0)+Number(v))||null;saveDay(S.date);break}
     case "dstep":{const s=curSet();if(!s)return;s.d=Math.max(0,r2((s.d||0)+Number(v)))||null;saveDay(S.date);break}
     case "assist":{const s=curSet();if(!s)return;if(s.a)delete s.a;else s.a=true;saveDay(S.date);break}
+    case "addpart":S.addPart=S.addPart===v?null:v;break;
+    case "addpick":return addToDay(v);
     case "addex":return addToDay(document.getElementById("add-ex").value);
     case "addnew":{const n=document.getElementById("add-new").value.trim(),p=document.getElementById("add-part").value,bw=document.getElementById("add-bw").checked;if(!n)return;
       if(!exOf(n)){S.ex.push({name:n,part:p||guess(n),...(bw||BW_RE.test(n)?{bw:true}:{})});saveMeta()}return addToDay(n)}
