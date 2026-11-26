@@ -5,6 +5,8 @@
   if (typeof window.showCele !== "function" || typeof window.render !== "function") return;
   const IMG = n => "/mascot/bolt_" + n + ".webp";
   const K_OFF = "tsumitore.bolt.tiredOff";
+  // 御三家で選んだキャラがいれば、ボルトの代わりに、そのキャラが（いまの進化の姿で）出てくる。pet.js が先に読みこまれていなくても、使う時に探す
+  const pp = kind => { try { return window.__petPraise ? window.__petPraise.get(kind) : null } catch (e) { return null } };
 
   // 画像は、アプリが落ち着いてから先読みする（起動を遅くしない）。お祝い画面で使う分だけ
   const idle = window.requestIdleCallback || (f => setTimeout(f, 2000));
@@ -24,6 +26,7 @@
   .bolt-tired img{height:84px;width:auto;flex:none}
   .bolt-tired b{display:block;font-size:14px}
   .bolt-tired span{display:block;margin-top:3px;font-size:12px;color:var(--muted);font-weight:500;line-height:1.5}
+  .bolt-tired img.pet-tired{filter:grayscale(.55) brightness(.85);transform:rotate(-7deg)}
   .bolt-x{position:absolute;top:2px;right:4px;width:30px;height:30px;border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
   .bolt-float{position:fixed;left:50%;bottom:92px;z-index:70;display:flex;flex-direction:column;align-items:center;pointer-events:none;animation:boltPop 3.6s ease both}
   .bolt-float img{height:190px;width:auto;filter:drop-shadow(0 10px 18px rgba(255,106,0,.45))}
@@ -40,21 +43,23 @@
     _showCele(c);
     try {
       const dlg = document.querySelector("#cele .cc, #cele .oo"); if (!dlg) return;
+      const kind = c.oodai ? "oodai" : c.max ? "max" : "rm", P = pp(kind);
       const w = document.createElement("div"); w.className = "bolt-wrap";
-      w.innerHTML = `<img src="${IMG("jump")}" alt="" aria-hidden="true" decoding="async"><span class="bolt-say">${c.oodai ? SAY.oodai : c.max ? SAY.max : SAY.rm}</span>`;
+      w.innerHTML = `<img src="${P ? P.src : IMG("jump")}" alt="" aria-hidden="true" decoding="async"><span class="bolt-say">${P ? P.text : SAY[kind]}</span>`;
       dlg.insertBefore(w, dlg.firstChild);
     } catch (e) {}
   };
 
   // 2) 今週の目標を達成したとき
-  function floatBolt(pose, text) {
+  function floatBolt(pose, text, kind) {
+    const P = kind ? pp(kind) : null;
     const el = document.createElement("div"); el.className = "bolt-float";
-    el.innerHTML = `<img src="${IMG(pose)}" alt="" aria-hidden="true" decoding="async"><span class="bolt-say">${text}</span>`;
+    el.innerHTML = `<img src="${P ? P.src : IMG(pose)}" alt="" aria-hidden="true" decoding="async"><span class="bolt-say">${P ? P.text : text}</span>`;
     document.body.appendChild(el); setTimeout(() => el.remove(), 3700);
   }
   if (typeof window.toast === "function") {
     const _toast = window.toast;
-    window.toast = function (m) { _toast(m); try { if (/目標.*達成/.test(String(m))) floatBolt("jump", "目標達成！すごい！") } catch (e) {} };
+    window.toast = function (m) { _toast(m); try { if (/目標.*達成/.test(String(m))) floatBolt("jump", "目標達成！すごい！", "goal") } catch (e) {} };
   }
 
   // 3) 記録がない日／しばらくジムに行っていない日
@@ -68,11 +73,13 @@
     const p = [...main.querySelectorAll("p.empty")].find(x => x.textContent.includes("この日の記録はまだありません"));
     if (p && !p.dataset.bolt) {
       p.dataset.bolt = "1"; p.className = "bolt-empty";
-      p.innerHTML = `<img src="${IMG("think")}" alt="" aria-hidden="true" decoding="async"><div><b>今日は、何する？</b><span>下から種目を足して、最初の1セットを入れよう。<br>5分だけでも、OK。</span></div>`;
+      const P = pp("think");
+      p.innerHTML = `<img src="${P ? P.src : IMG("think")}" alt="" aria-hidden="true" decoding="async"><div><b>今日は、何する？</b><span>下から種目を足して、最初の1セットを入れよう。<br>5分だけでも、OK。</span></div>`;
     }
     if (!document.getElementById("bolt-tired") && S.date === today() && daysSinceLast() >= 3 && !off()) {
       const d = document.createElement("div"); d.id = "bolt-tired"; d.className = "bolt-tired";
-      d.innerHTML = `<img src="${IMG("tired")}" alt="" aria-hidden="true" decoding="async"><div><b>ボルトが、ぐったりしてる…</b><span>しばらくジムに行ってないよ。<br>5分だけでいいから、一緒に行こう。</span></div><button class="bolt-x" aria-label="今日は表示しない">×</button>`;
+      const P = pp("tired");
+      d.innerHTML = `<img ${P ? 'class="pet-tired" ' : ""}src="${P ? P.src : IMG("tired")}" alt="" aria-hidden="true" decoding="async"><div><b>${P ? P.name : "ボルト"}が、ぐったりしてる…</b><span>しばらくジムに行ってないよ。<br>5分だけでいいから、一緒に行こう。</span></div><button class="bolt-x" aria-label="今日は表示しない">×</button>`;
       main.insertBefore(d, main.firstChild);
     }
   }

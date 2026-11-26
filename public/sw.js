@@ -3,7 +3,7 @@
    方針: 自分のサイトのファイルは「まずネット、遅い・つながらないときだけ保存分」。
          → 更新した版が必ず届く。オフラインでも開く。
    /api と Supabase（ログイン・同期）は一切さわらない。 */
-const CACHE = "kintore-shell-v6";
+const CACHE = "kintore-shell-v9";
 const FONTS = "kintore-fonts-v1";
 const SHELL = ["/", "/app.css", "/app.js", "/store.js", "/mascot.js", "/points.js", "/pet.js", "/friends.js", "/config.js", "/vendor/supabase.js",
   "/mascot/bolt_jump.webp", "/mascot/bolt_think.webp", "/mascot/bolt_tired.webp",

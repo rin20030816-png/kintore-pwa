@@ -10,3 +10,6 @@
 
 /config.js
   Cache-Control: no-cache
+
+/chars/*
+  Cache-Control: public, max-age=86400
