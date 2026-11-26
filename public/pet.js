@@ -23,6 +23,20 @@
     const now = Date.now(); taps = taps.filter(t => now - t < 4000); taps.push(now);
     if (taps.length >= 7) { taps = []; const nv = !store.get(); store.set(nv); try { if (typeof toast === "function") toast(nv ? "キャラ育成を、入れました" : "キャラ育成を、切りました") } catch (x) {} setTimeout(() => location.reload(), 700) }
   });
+  /* 自分のアカウントでログインしたら、自動でスイッチを入れる（メールアドレスそのものは書かず、ハッシュだけを持つ） */
+  const OWNER_HASH = "bde4922b46499f3541ca7a4172478e30cecbf6ee51b403d49eb4a4f0082ad24c";
+  if (!store.get() && window.crypto && crypto.subtle) {
+    let tries = 0;
+    const iv = setInterval(async () => {
+      if (++tries > 150 || store.get()) return clearInterval(iv);
+      const em = typeof A !== "undefined" && A && A.user && A.user.email; if (!em) return;
+      clearInterval(iv);
+      try {
+        const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(em).trim().toLowerCase())))).map(b => b.toString(16).padStart(2, "0")).join("");
+        if (h === OWNER_HASH) { store.set(true); location.reload() }
+      } catch (x) {}
+    }, 2000);
+  }
   if (!store.get()) return;
   if (typeof window.render !== "function" || typeof window.computePoints !== "function") return;
   { const s3 = document.createElement("script"); s3.src = "/pet3d.js"; s3.async = true; s3.onload = () => { try { mount3d() } catch (x) {} }; document.head.appendChild(s3) }
