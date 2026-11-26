@@ -96,11 +96,21 @@
     const ctl = { yaw: 0, pitch: 0, rest: true, dead: false, raf: 0,
       set(a, p) { ctl.yaw = a; ctl.pitch = p || 0; ctl.rest = (a % 360 === 0) && !p },
       destroy() { if (ctl.dead) return; ctl.dead = true; cancelAnimationFrame(ctl.raf); try { gl.getExtension("WEBGL_lose_context") && gl.getExtension("WEBGL_lose_context").loseContext() } catch (e) {} } };
+    /* 立体が、画面にうまく出なかったときは、平らな絵にもどす（キャラが消えたままにならないように） */
+    let nf = 0, shown = false;
+    const giveUp = why => { c.dataset.gl = "fail:" + why; ctl.destroy(); cvs.remove(); const im = c.querySelector("img"); if (im) im.style.visibility = ""; c.classList.remove("pc-3d"); CTL.set(c, null) };
+    cvs.addEventListener("webglcontextlost", ev => { ev.preventDefault(); giveUp("lost") });
+    const looksEmpty = (W, H) => {
+      const px = new Uint8Array(4);
+      for (let yy = 1; yy < 14; yy++) for (let xx = 1; xx < 14; xx++) { gl.readPixels(Math.floor(W * xx / 14), Math.floor(H * yy / 14), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); if (px[3] > 8) return false }
+      return true;
+    };
     function frame(t) {
       if (ctl.dead) return;
       if (!c.isConnected) { ctl.destroy(); return }
       ctl.raf = requestAnimationFrame(frame);
       if (document.hidden) return;
+      if (gl.isContextLost()) { giveUp("lost"); return }
       const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.max(2, Math.round(c.clientWidth * dpr)), H = Math.max(2, Math.round(c.clientHeight * dpr));
       if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H }
       gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -111,6 +121,11 @@
       gl.uniformMatrix3fv(uRot, false, new Float32Array([cy, sp * sy, -cp * sy, 0, cp, sp, sy, -sp * cy, cp * cy]));
       gl.uniform1f(uS, S); gl.uniform1f(uTy, TY); gl.uniform1f(uBob, still ? 0 : Math.sin(s * 2.2) * 0.022);
       gl.drawElements(gl.TRIANGLES, g.idx.length, gl.UNSIGNED_SHORT, 0);
+      if (!shown && ++nf >= 3) { // 3コマ目で、何か描けているかを調べる
+        const err = gl.getError();
+        if (err !== gl.NO_ERROR || looksEmpty(W, H)) { giveUp(err ? "gl" + err : "empty"); return }
+        shown = true; c.dataset.gl = "ok";
+      }
     }
     ctl.raf = requestAnimationFrame(frame);
     return ctl;
