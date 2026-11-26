@@ -201,6 +201,9 @@
   #pet-ob .obc b{display:block;font-size:19px}
   #pet-ob .obc .kind{display:inline-block;font-size:11px;font-weight:900;color:var(--gold);border:1px solid #6a5316;border-radius:99px;padding:1px 10px;margin:4px 0 6px}
   #pet-ob .obc small{display:block;font-size:12px;color:var(--muted);line-height:1.6}
+  #pet-ob .obc .sils{grid-column:1/-1;display:flex;gap:3px;align-items:flex-end;padding-top:6px;border-top:1px dashed var(--line)}
+  #pet-ob .obc .sils i{flex:1;aspect-ratio:1/1;background:#6c7692;-webkit-mask:var(--m) center bottom/contain no-repeat;mask:var(--m) center bottom/contain no-repeat;opacity:.85}
+  #pet-ob .obw{text-align:center;font-size:14px;line-height:1.7;margin:0 0 10px;color:var(--ink)}
   #pet-ob .obf{position:sticky;bottom:0;padding:12px 0 8px;background:linear-gradient(transparent,var(--bg) 30%)}
   #pet-ob .obf .btn{width:100%;padding:14px;font-size:16px}
   #pet-ob .obf .btn[disabled]{opacity:.45}
@@ -214,7 +217,7 @@
     const k = pet(), p = life();
     if (!k) {
       return `<div class="pet-pick" id="pet-card"><h3>相棒を、むかえよう</h3>
-        <p>3体から1体を選んで、記録で育てていきます。進化の先は、たどりつくまでのおたのしみ。</p>
+        <p>3体から1体を選んで、記録で育てていきます。一度選ぶと、変えられません。進化の先は、たどりつくまでのおたのしみ。</p>
         <div class="row">${Object.keys(SP).map(x => draw(x, 0, { still: 1, stage: 0 })).join("")}</div>
         <button type="button" class="btn" data-pet="ob">相棒を、えらぶ</button></div>`;
     }
@@ -259,9 +262,7 @@
         <div class="pnote" style="margin:0" id="pnext">${nx ? `次の進化まで、あと ${nf(Math.max(0, nx.pt - Math.round(p)))} pt` : "最終段階です。ここが、いちばん先。"}</div></div>
       <div class="pcard"><h2>育ち方</h2><div class="tl" id="ptl">${tilesHtml(k, real, i)}</div>
         <p class="pnote">累計ポイントは、いままでの記録すべてから計算します（友達に見せる設定とは関係ありません）。まだ着いていない先のすがたは、たどりつくまで見られません。いちばん先までは、毎日コツコツ続けても、1年以上かかる長い道のりです。</p></div>
-      <div class="pcard"><h2>相棒</h2><div class="chips">${Object.keys(SP).map(x => `<button type="button" class="chip" data-pet="sw" data-k="${x}" aria-pressed="${x === k}">${SP[x].name}</button>`).join("")}</div>
-        ${OV.sw && OV.sw !== k ? `<div class="swc">${SP[OV.sw].name}に、変えますか？育ち具合（ポイント）は、そのままです。<div class="row"><button class="btn" type="button" data-pet="swgo">変える</button><button class="btn" type="button" data-pet="swno" style="background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px #4a4f5a">やめる</button></div></div>` : ""}
-        <p class="pnote">どのキャラも、男の子・女の子を選びません。ほめてくれるのも、選んだ相棒です。</p></div></div>`;
+      <div class="pcard"><h2>相棒</h2><p class="pnote" style="margin:0">${SP[k].name}は、あなたが選んだ、ただひとりの相棒です。相棒は、あとから変えられません。この子と、最後まで。ほめてくれるのも、この子です。どのキャラも、男の子・女の子を選びません。</p></div></div>`;
   }
   function refocus(el, ae) { if (!ae || !ae.dataset || !ae.dataset.pet) return; const q = `[data-pet="${ae.dataset.pet}"]${ae.dataset.k ? `[data-k="${ae.dataset.k}"]` : ""}${ae.dataset.n ? `[data-n="${ae.dataset.n}"]` : ""}`, n = el.querySelector(q); if (n) n.focus({ preventScroll: true }) }
   function ovRender() { const el = document.getElementById("pet-ov"); if (!el) return; const sc = el.scrollTop, ae = document.activeElement; el.innerHTML = ovHtml(); el.scrollTop = sc; refocus(el, ae); mount3d(); if (window.__petDemoBar) window.__petDemoBar() }
@@ -301,16 +302,18 @@
   }
 
   /* ---------- 最初のキャラ選び（御三家） ---------- */
-  const OB = { open: false, sel: null, done: false };
+  const OB = { open: false, sel: null, done: false, conf: false };
   function obHtml() {
     const keys = Object.keys(SP);
     return `<div class="pw"><h1>相棒を、えらぼう</h1>
-      <p class="lead">3体のなかから、1体を選びます。あなたの筋トレの記録で、この子がいっしょに成長していきます。記録を更新したときは、この子がほめてくれます。進化の先は、たどりつくまでひみつ。いちばん先は、とても遠い道のりです。</p>
-      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}">${draw(x, 0, { stage: 0, still: OB.sel !== x })}<span><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span></button>`).join("")}
-      <div class="obf"><button type="button" class="btn" data-pet="obgo" ${OB.sel ? "" : "disabled"}>${OB.sel ? `${SP[OB.sel].name}と、旅に出る` : "ひとり、えらんでね"}</button><button type="button" class="lnk" data-pet="obskip">あとで選ぶ</button></div></div>`;
+      <p class="lead">3体のなかから、1体を選びます。選んだ子と、最後まで育てていきます。<b>一度選ぶと、あとから変えられません。</b>あなたの筋トレの記録で、この子がいっしょに成長します。記録を更新したときは、この子がほめてくれます。進化のすがたは、影だけ見せます。本当のすがたは、たどりつくまでひみつ。</p>
+      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}">${draw(x, 0, { stage: 0, still: OB.sel !== x })}<span><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span><span class="sils" aria-label="進化のすがた（影だけ）">${STAGES.map((s, n) => n ? `<i style="--m:url(/chars/sil/${x}_${n + 1}.webp)"></i>` : "").join("")}</span></button>`).join("")}
+      <div class="obf">${OB.conf && OB.sel
+        ? `<div class="obw"><b>${SP[OB.sel].name}で、決めますか？</b><br>相棒は、あとから変えられません。</div><button type="button" class="btn" data-pet="obgo2">この子に、決める</button><button type="button" class="lnk" data-pet="obback">もどって、えらびなおす</button>`
+        : `<button type="button" class="btn" data-pet="obgo" ${OB.sel ? "" : "disabled"}>${OB.sel ? `${SP[OB.sel].name}にする` : "ひとり、えらんでね"}</button><button type="button" class="lnk" data-pet="obskip">あとで選ぶ</button>`}</div></div>`;
   }
   function openOb() {
-    if (OB.open) return; let el = document.getElementById("pet-ob");
+    if (OB.open || pet()) return; OB.conf = false; let el = document.getElementById("pet-ob");
     if (!el) { el = document.createElement("div"); el.id = "pet-ob"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "相棒を選ぶ"); el.setAttribute("aria-modal", "true"); document.body.appendChild(el) }
     OB.open = true; el.innerHTML = obHtml(); el.scrollTop = 0; const f0 = el.querySelector(".obc"); if (f0) f0.focus({ preventScroll: true });
   }
@@ -348,7 +351,7 @@
   /* ---------- 操作 ---------- */
   function syncing() { return typeof A !== "undefined" && !!A && !!A.user && !A.ready }
   function choose(key) {
-    if (!SP[key]) return;
+    if (!SP[key] || pet()) return; // 相棒は、一度えらんだら、変えられない
     if (syncing()) { if (typeof toast === "function") toast("同期が終わるまで、少し待ってね"); return }
     if (DEV && override != null) return;
     const first = !pet(); S.settings.pet = key;
@@ -365,12 +368,11 @@
     if (a === "open") openOv();
     else if (a === "close") closeOv();
     else if (a === "ob") openOb();
-    else if (a === "obsel") { OB.sel = b.dataset.k; obRender() }
-    else if (a === "obgo") { if (!OB.sel) return; if (pet()) { OB.done = true; closeOb(); return } if (syncing()) { if (typeof toast === "function") toast("同期が終わるまで、少し待ってね"); return } const k = OB.sel; OB.done = true; closeOb(); choose(k) }
+    else if (a === "obsel") { OB.sel = b.dataset.k; OB.conf = false; obRender() }
+    else if (a === "obgo") { if (!OB.sel) return; OB.conf = true; obRender(); const el = document.getElementById("pet-ob"); if (el) el.scrollTop = el.scrollHeight }
+    else if (a === "obback") { OB.conf = false; obRender() }
+    else if (a === "obgo2") { if (!OB.sel) return; if (pet()) { OB.done = true; closeOb(); return } if (syncing()) { if (typeof toast === "function") toast("同期が終わるまで、少し待ってね"); return } const k = OB.sel; OB.done = true; closeOb(); choose(k) }
     else if (a === "obskip") { try { sessionStorage.setItem("pet.skip", "1"); localStorage.setItem("pet.skipUntil", String(Date.now() + 3 * 864e5)) } catch (x) {} OB.done = true; closeOb(); const c = document.getElementById("pet-card"); if (c) c.remove(); decorate() }
-    else if (a === "sw") { OV.sw = b.dataset.k === pet() ? null : b.dataset.k; ovRender() }
-    else if (a === "swgo") { const k = OV.sw; OV.sw = null; if (k) choose(k) }
-    else if (a === "swno") { OV.sw = null; ovRender() }
     else if (a === "jump") { const n = +b.dataset.n; if (STAGES[n] && maxPt() >= STAGES[n].pt) { OV.anim++; OV.banner = ""; OV.pts = n === stageOf(maxPt()) ? maxPt() : Math.min(maxPt(), STAGES[n].pt + 5); OV.shown = -1; ovRender() } }
   });
   document.addEventListener("keydown", ev => {
