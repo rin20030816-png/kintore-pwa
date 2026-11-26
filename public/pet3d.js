@@ -12,7 +12,7 @@
     const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
     const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(im, 0, 0);
     const d = cx.getImageData(0, 0, w, h).data;
-    const GX = Math.max(28, Math.min(100, Math.round(w / 5))), GY = Math.max(28, Math.min(100, Math.round(h / 5)));
+    const GX = Math.max(28, Math.min(140, Math.round(w / 4.5))), GY = Math.max(28, Math.min(140, Math.round(h / 4.5)));
     const N = GX * GY, ins = new Uint8Array(N);
     for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) {
       const px = Math.round(i / (GX - 1) * (w - 1)), py = Math.round(j / (GY - 1) * (h - 1)); let s = 0, c = 0;
@@ -25,11 +25,17 @@
     for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) { const k = j * GX + i; if (!ins[k]) continue; dist[k] = Math.min(dist[k], at(i - 1, j) + 1, at(i, j - 1) + 1, at(i - 1, j - 1) + 1.414, at(i + 1, j - 1) + 1.414) }
     for (let j = GY - 1; j >= 0; j--) for (let i = GX - 1; i >= 0; i--) { const k = j * GX + i; if (!ins[k]) continue; dist[k] = Math.min(dist[k], at(i + 1, j) + 1, at(i, j + 1) + 1, at(i + 1, j + 1) + 1.414, at(i - 1, j + 1) + 1.414) }
     // ふっくらした厚み（まるい縁。中ほどは平ら）
-    const R = Math.max(4, Math.min(GX, GY) / 15), T = 0.105, hh = new Float32Array(N);
-    for (let k = 0; k < N; k++) { if (!ins[k]) continue; const t = Math.min(dist[k] / R, 1); hh[k] = T * Math.sqrt(1 - (1 - t) * (1 - t)) }
-    // 少しなめらかに
-    const sm = new Float32Array(N);
-    for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) { let s = 0, c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = i + dx, y = j + dy; if (x < 0 || y < 0 || x >= GX || y >= GY) { c++; continue } s += hh[y * GX + x]; c++ } sm[j * GX + i] = ins[j * GX + i] ? s / c : 0 }
+    // 「ふくらませる」形：太いところ（からだ）は厚く、細いところ（手足・しっぽ・羽）は薄く。平らな板ではなく、まるい立体になる
+    let maxD = 1; for (let k = 0; k < N; k++) if (dist[k] < 1e8 && dist[k] > maxD) maxD = dist[k];
+    const dyw0 = 2 / (GY - 1), Rg = maxD * 0.9, T = Math.min(0.40, Math.max(0.18, maxD * dyw0 * 0.62)), hh = new Float32Array(N);
+    for (let k = 0; k < N; k++) { if (!ins[k]) continue; const t = Math.min(dist[k] / Rg, 1); hh[k] = T * Math.sqrt(1 - (1 - t) * (1 - t)) }
+    // なめらかに（2回）
+    let sm = hh;
+    for (let pass = 0; pass < 2; pass++) {
+      const nx = new Float32Array(N);
+      for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) { let s = 0, c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = i + dx, y = j + dy; if (x < 0 || y < 0 || x >= GX || y >= GY) { c++; continue } s += sm[y * GX + x]; c++ } nx[j * GX + i] = ins[j * GX + i] ? s / c : 0 }
+      sm = nx;
+    }
     const A = w / h, dxw = 2 * A / (GX - 1), dyw = 2 / (GY - 1), V = 9, buf = new Float32Array(2 * N * V);
     for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) {
       const k = j * GX + i, x = (i / (GX - 1) - 0.5) * 2 * A, y = (0.5 - j / (GY - 1)) * 2, z = sm[k];
@@ -60,14 +66,15 @@
   uniform mat3 uRot;uniform float uS;uniform float uTy;uniform float uBob;
   varying vec2 vUv;varying vec3 vN;varying float vSide;
   void main(){vec3 p=uRot*aPos;vN=uRot*aNrm;vUv=aUv;vSide=aSide;
-    gl_Position=vec4(p.x*uS,p.y*uS+uTy+uBob,-p.z*0.4,1.0-p.z*0.10*uS);}`;
+    gl_Position=vec4(p.x*uS,p.y*uS+uTy+uBob,-p.z*0.4,1.0-p.z*0.45*uS);}`;
   const FS = `precision mediump float;uniform sampler2D uTex;uniform vec3 uGlow;
   varying vec2 vUv;varying vec3 vN;varying float vSide;
   void main(){vec4 c=texture2D(uTex,vUv);if(c.a<0.06)discard;
     vec3 n=normalize(vN);vec3 L=normalize(vec3(-0.45,0.55,0.75));
     float df=max(dot(n,L),0.0);float rim=pow(1.0-abs(n.z),2.0);
-    float edge=mix(0.5,1.0,smoothstep(0.15,0.85,abs(n.z)));
-    vec3 rgb=c.rgb*(0.62+0.55*df)*edge+uGlow*rim*0.12*c.a;
+    float edge=mix(0.42,1.0,smoothstep(0.1,0.8,abs(n.z)));
+    vec3 H=normalize(L+vec3(0.0,0.0,1.0));float sp=pow(max(dot(n,H),0.0),22.0)*0.16;
+    vec3 rgb=c.rgb*(0.50+0.78*df)*edge+(uGlow*rim*0.14+vec3(sp))*c.a;
     if(vSide>0.5)rgb*=vec3(0.50,0.52,0.58);
     gl_FragColor=vec4(min(rgb,vec3(1.0)),c.a);}`;
   function sh(gl, type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s }
@@ -92,7 +99,7 @@
     const uRot = U("uRot"), uS = U("uS"), uTy = U("uTy"), uBob = U("uBob"), uGlow = U("uGlow");
     gl.uniform3fv(uGlow, hex(c.dataset.gc));
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    const S = 0.86 / Math.max(1, g.A), TY = -0.90 + S;
+    const S = 0.66 / Math.max(1, g.A), TY = -0.78 + S;
     const ctl = { yaw: 0, pitch: 0, rest: true, dead: false, raf: 0,
       set(a, p) { ctl.yaw = a; ctl.pitch = p || 0; ctl.rest = (a % 360 === 0) && !p },
       destroy() { if (ctl.dead) return; ctl.dead = true; cancelAnimationFrame(ctl.raf); try { gl.getExtension("WEBGL_lose_context") && gl.getExtension("WEBGL_lose_context").loseContext() } catch (e) {} } };
@@ -115,7 +122,7 @@
       if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H }
       gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       const s = t / 1000, still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const sway = ctl.rest && !still ? Math.sin(s * 0.9) * 9 : 0, tilt = ctl.rest && !still ? Math.sin(s * 0.7) * 2.5 : 0;
+      const sway = ctl.rest && !still ? Math.sin(s * 0.9) * 15 : 0, tilt = ctl.rest && !still ? Math.sin(s * 0.7) * 2.5 : 0;
       const ya = (ctl.yaw + sway) * Math.PI / 180, pa = (ctl.pitch + tilt) * Math.PI / 180, cy = Math.cos(ya), sy = Math.sin(ya), cp = Math.cos(pa), sp = Math.sin(pa);
       // R = Rx(pitch) * Ry(yaw)（列を先にならべる）
       gl.uniformMatrix3fv(uRot, false, new Float32Array([cy, sp * sy, -cp * sy, 0, cp, sp, sy, -sp * cy, cp * cy]));
