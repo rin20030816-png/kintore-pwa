@@ -4,16 +4,19 @@
    選んだキャラと、進化の演出を見せた段階は、設定（S.settings.pet / petLv）に入れて、ログインしていれば端末間で同期されます。
    まだ着いていない段階の絵は、画面に出しません（絵のファイルも、着くまで読みこみません）。
    記録更新のお祝いなどでは、選んだキャラが、いまの姿でほめてくれます（mascot.js が window.__petPraise を使います）。 */
-/* ===== 自分専用のスイッチ（この機能は、まだ、自分の端末でだけ使う）=====
-   ・入れる：アプリを「…/?pet=on」で開く。または、画面上の「筋トレは力なり」の文字を、4秒いないに7回タップ。
-   ・切る　：「…/?pet=off」で開く。または、同じく文字を7回タップ（入れたり切ったりを、交互に）。
-   ・スイッチが入っていない端末では、このファイルは何もしません（画面にも、通信にも、出ません）。
+/* ===== 出す相手のスイッチ =====
+   ・いまは PUBLIC = true（全員に出す）。個人の端末では「…/?pet=off」で開くか、画面上の「筋トレは力なり」の文字を4秒いないに7回タップすると、切れる（もう一度で入る）。
+   ・全員に出すのをやめて、自分だけにもどすとき：下の PUBLIC を false にする（そのとき、自分の端末は ?pet=on か、自分のアカウントでログインで入る）。
+   ・スイッチが切れている端末では、このファイルは何もしません（画面にも、通信にも、出ません）。
    ・完全にはずすとき：index.html の <script src="/pet.js"> の1行を消すだけ。
      （mascot.js は、キャラがいないときは、ボルトにもどります。残りのファイルは、消してもかまいません：
        pet.js / pet3d.js / pet-demo.js / chars フォルダ / store.js の pet・petLv の2行 / mascot.js の pp(...)）===== */
 (function () {
+  const PUBLIC = true; // true: 全員に出す（個人の端末で ?pet=off／タイトル7回タップで、切れる）。false: 自分の端末・自分のアカウントだけ
   const KEY = "kt.pet";
-  const store = { get() { try { return localStorage.getItem(KEY) === "1" } catch (x) { return false } }, set(v) { try { v ? localStorage.setItem(KEY, "1") : localStorage.removeItem(KEY) } catch (x) {} } };
+  const store = PUBLIC
+    ? { get() { try { return localStorage.getItem(KEY) !== "0" } catch (x) { return true } }, set(v) { try { v ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, "0") } catch (x) {} } }
+    : { get() { try { return localStorage.getItem(KEY) === "1" } catch (x) { return false } }, set(v) { try { v ? localStorage.setItem(KEY, "1") : localStorage.removeItem(KEY) } catch (x) {} } };
   const q = /[?&]pet=(on|off)(?:&|$)/.exec(location.search);
   if (q) { store.set(q[1] === "on"); try { const u = new URL(location.href); u.searchParams.delete("pet"); history.replaceState(null, "", u.pathname + u.search + u.hash) } catch (x) {} }
   // ひみつの入れ方：タイトルを、7回タップ（ホーム画面から開くアプリでも使える）
@@ -25,7 +28,7 @@
   });
   /* 自分のアカウントでログインしたら、自動でスイッチを入れる（メールアドレスそのものは書かず、ハッシュだけを持つ） */
   const OWNER_HASH = "bde4922b46499f3541ca7a4172478e30cecbf6ee51b403d49eb4a4f0082ad24c";
-  if (!store.get() && window.crypto && crypto.subtle) {
+  if (!PUBLIC && !store.get() && window.crypto && crypto.subtle) {
     let tries = 0;
     const iv = setInterval(async () => {
       if (++tries > 150 || store.get()) return clearInterval(iv);
