@@ -55,7 +55,7 @@
   ];
   const SP = {
     bolt: { name: "ボルト", kind: "雷の妖精", line: "うるさい応援団長。「あと1回！」が口ぐせ。" },
-    chick: { name: "ひよこ", kind: "ちいさな観察者", line: "マイペース。たまに、核心をつく。" },
+    chick: { name: "コガネ", kind: "ちいさな観察者", line: "マイペース。たまに、核心をつく。" },
     goro: { name: "ゴロウ", kind: "赤ちゃんゴリラ", line: "癒しの担当。人間のまねが、大好き。" }
   };
   /* ほめ言葉。[はじめ（段階1〜3）, 育ってきた（4〜6）, 最終に近い（7〜8）] */
@@ -197,13 +197,29 @@
   @keyframes pevo{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
   #pet-ob h1{font-size:22px;margin:8px 0 6px;line-height:1.3}
   #pet-ob .lead{font-size:13px;color:var(--muted);line-height:1.7;margin:0 0 14px}
-  #pet-ob .obc{display:grid;grid-template-columns:128px 1fr;gap:12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:8px;margin-bottom:10px;color:var(--ink);font:inherit;cursor:pointer}
+  #pet-ob .obc{display:block;width:100%;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:12px;color:var(--ink);font:inherit;cursor:pointer}
+  #pet-ob .obp{display:flex;align-items:center;gap:4px}
+  #pet-ob .ob1{flex:0 0 47%}
+  #pet-ob .obar{flex:none;color:var(--muted);font-size:13px;opacity:.7}
+  #pet-ob .obfin{position:relative;flex:1;aspect-ratio:1/1;display:grid;place-items:center}
+  #pet-ob .obsl{position:absolute;inset:4%;filter:blur(7px);animation:pobf 4.2s ease-in-out infinite}
+  #pet-ob .obsl i{position:absolute;inset:0;background:linear-gradient(#9aa3c0,#566082);-webkit-mask:var(--m) center bottom/contain no-repeat;mask:var(--m) center bottom/contain no-repeat;opacity:.5}
+  #pet-ob .obfin::before,#pet-ob .obfin::after{content:"";position:absolute;pointer-events:none;border-radius:50%}
+  #pet-ob .obfin::before{inset:-6%;background:radial-gradient(closest-side at 50% 58%,rgba(160,170,215,.34),rgba(160,170,215,.12) 55%,transparent 78%);animation:pfog 5.5s ease-in-out infinite}
+  #pet-ob .obfin::after{inset:10% -12% 18% 8%;background:radial-gradient(closest-side,rgba(190,198,230,.22),transparent 72%);animation:pfog2 7s ease-in-out infinite}
+  @keyframes pfog{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.08);opacity:1}}
+  @keyframes pfog2{0%,100%{transform:translateX(-4%)}50%{transform:translateX(8%)}}
+  @keyframes pobf{0%,100%{opacity:.22}50%{opacity:.36}}
+  #pet-ob .obfin em{position:relative;font-style:normal;font-weight:900;font-size:24px;color:#cfd6ee;opacity:.5}
+  #pet-ob .obt{display:block;margin-top:8px}
   #pet-ob .obc[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,75,31,.25)}
   #pet-ob .obc b{display:block;font-size:19px}
   #pet-ob .obc .kind{display:inline-block;font-size:11px;font-weight:900;color:var(--gold);border:1px solid #6a5316;border-radius:99px;padding:1px 10px;margin:4px 0 6px}
   #pet-ob .obc small{display:block;font-size:12px;color:var(--muted);line-height:1.6}
-  #pet-ob .obc .sils{grid-column:1/-1;display:flex;gap:3px;align-items:flex-end;padding-top:6px;border-top:1px dashed var(--line)}
-  #pet-ob .obc .sils i{flex:1;aspect-ratio:1/1;background:#6c7692;-webkit-mask:var(--m) center bottom/contain no-repeat;mask:var(--m) center bottom/contain no-repeat;opacity:.85}
+  #pet-ob .obc .sils{display:flex;gap:3px;align-items:flex-end;margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}
+  #pet-ob .obc .sils .obsm{flex:1;aspect-ratio:1/1;position:relative;filter:blur(3.5px);opacity:.5}
+  #pet-ob .obc .sils i{position:absolute;inset:0;background:#6c7692;-webkit-mask:var(--m) center bottom/contain no-repeat;mask:var(--m) center bottom/contain no-repeat;opacity:.55}
+  @media (prefers-reduced-motion: reduce){#pet-ob .obsl,#pet-ob .obfin::before,#pet-ob .obfin::after{animation:none}}
   #pet-ob .obw{text-align:center;font-size:14px;line-height:1.7;margin:0 0 10px;color:var(--ink)}
   #pet-ob .obf{position:sticky;bottom:0;padding:12px 0 8px;background:linear-gradient(transparent,var(--bg) 30%)}
   #pet-ob .obf .btn{width:100%;padding:14px;font-size:16px}
@@ -308,13 +324,13 @@
     const keys = Object.keys(SP);
     return `<div class="pw"><h1>相棒を、えらぼう</h1>
       <p class="lead">3体のなかから、1体を選びます。選んだ子と、最後まで育てていきます。<b>一度選ぶと、あとから変えられません。</b>あなたの筋トレの記録で、この子がいっしょに成長します。記録を更新したときは、この子がほめてくれます。進化のすがたは、影だけ見せます。本当のすがたは、たどりつくまでひみつ。</p>
-      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}">${draw(x, 0, { stage: 0, still: OB.sel !== x })}<span><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span><span class="sils" aria-label="進化のすがた（影だけ）">${STAGES.map((s, n) => n ? `<i style="--m:url(/chars/sil/${x}_${n + 1}.webp${CV})"></i>` : "").join("")}</span></button>`).join("")}
+      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}"><span class="obp"><span class="ob1">${draw(x, 0, { stage: 0, still: OB.sel !== x })}</span><span class="obar" aria-hidden="true">▶</span><span class="obfin" aria-label="いちばん先のすがた（影だけ）"><span class="obsl"><i style="--m:url(/chars/sil/${x}_8.webp${CV})"></i></span><em>？</em></span></span><span class="obt"><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span><span class="sils" aria-label="進化の途中のすがた（影だけ）">${STAGES.map((s, n) => n && n < 7 ? `<span class="obsm"><i style="--m:url(/chars/sil/${x}_${n + 1}.webp${CV})"></i></span>` : "").join("")}</span></button>`).join("")}
       <div class="obf">${OB.conf && OB.sel
         ? `<div class="obw"><b>${SP[OB.sel].name}で、決めますか？</b><br>相棒は、あとから変えられません。</div><button type="button" class="btn" data-pet="obgo2">この子に、決める</button><button type="button" class="lnk" data-pet="obback">もどって、えらびなおす</button>`
         : `<button type="button" class="btn" data-pet="obgo" ${OB.sel ? "" : "disabled"}>${OB.sel ? `${SP[OB.sel].name}にする` : "ひとり、えらんでね"}</button><button type="button" class="lnk" data-pet="obskip">あとで選ぶ</button>`}</div></div>`;
   }
-  function openOb() {
-    if (OB.open || pet()) return; OB.conf = false; let el = document.getElementById("pet-ob");
+  function openOb(demo) {
+    if (OB.open || (pet() && demo !== "demo")) return; OB.conf = false; OB.sel = null; OB.demo = demo === "demo"; let el = document.getElementById("pet-ob"); /* demo: パソコン上のデモ用（選んでも、保存しない） */
     if (!el) { el = document.createElement("div"); el.id = "pet-ob"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "相棒を選ぶ"); el.setAttribute("aria-modal", "true"); document.body.appendChild(el) }
     OB.open = true; el.innerHTML = obHtml(); el.scrollTop = 0; const f0 = el.querySelector(".obc"); if (f0) f0.focus({ preventScroll: true });
   }
@@ -372,8 +388,8 @@
     else if (a === "obsel") { OB.sel = b.dataset.k; OB.conf = false; obRender() }
     else if (a === "obgo") { if (!OB.sel) return; OB.conf = true; obRender(); const el = document.getElementById("pet-ob"); if (el) el.scrollTop = el.scrollHeight }
     else if (a === "obback") { OB.conf = false; obRender() }
-    else if (a === "obgo2") { if (!OB.sel) return; if (pet()) { OB.done = true; closeOb(); return } if (syncing()) { if (typeof toast === "function") toast("同期が終わるまで、少し待ってね"); return } const k = OB.sel; OB.done = true; closeOb(); choose(k) }
-    else if (a === "obskip") { try { sessionStorage.setItem("pet.skip", "1"); localStorage.setItem("pet.skipUntil", String(Date.now() + 3 * 864e5)) } catch (x) {} OB.done = true; closeOb(); const c = document.getElementById("pet-card"); if (c) c.remove(); decorate() }
+    else if (a === "obgo2") { if (!OB.sel) return; if (OB.demo) { OB.demo = false; closeOb(); if (typeof toast === "function") toast("デモなので、えらんだ結果は保存しません"); return } if (pet()) { OB.done = true; closeOb(); return } if (syncing()) { if (typeof toast === "function") toast("同期が終わるまで、少し待ってね"); return } const k = OB.sel; OB.done = true; closeOb(); choose(k) }
+    else if (a === "obskip") { if (OB.demo) { OB.demo = false; closeOb(); return } try { sessionStorage.setItem("pet.skip", "1"); localStorage.setItem("pet.skipUntil", String(Date.now() + 3 * 864e5)) } catch (x) {} OB.done = true; closeOb(); const c = document.getElementById("pet-card"); if (c) c.remove(); decorate() }
     else if (a === "jump") { const n = +b.dataset.n; if (STAGES[n] && maxPt() >= STAGES[n].pt) { OV.anim++; OV.banner = ""; OV.pts = n === stageOf(maxPt()) ? maxPt() : Math.min(maxPt(), STAGES[n].pt + 5); OV.shown = -1; ovRender() } }
   });
   document.addEventListener("keydown", ev => {
@@ -435,7 +451,7 @@
   window.render = function () { _render.apply(this, arguments); try { decorate(); maybeOnboard() } catch (x) {} };
   try { window.render() } catch (x) {}
   /* 動作確認用。デモ（スライダー）は、パソコン上（localhost）でだけ使える */
-  if (DEV) window.__pet = { STAGES, stageOf, life, open: openOv, openOb, spinOnce, praise,
+  if (DEV) window.__pet = { STAGES, stageOf, life, open: openOv, openOb, openObDemo() { closeOb(); openOb("demo") }, spinOnce, praise,
     setOverride(v) { if (DEV) { clearInterval(playT); OV.anim++; override = v == null ? null : +v; if (OV.open) { OV.pts = Math.min(OV.pts, maxPt()); OV.shown = -1; ovRender() } } },
     play() { if (!DEV) return; if (!OV.open) openOv(); clearInterval(playT); OV.anim++; override = STAGES[U].pt + 1; OV.pts = 0; OV.shown = -1; ovRender(); let n = 0;
       playT = setInterval(() => { n++; if (n > U) { clearInterval(playT); if (window.__petDemoDone) window.__petDemoDone(); return } OV.pts = STAGES[n].pt + 5; OV.banner = `進化！ ${STAGES[n].n} にたどりついた！`; armBanner(); ovLive(); const b = document.getElementById("pstage"); if (b && !b.querySelector(".evo")) { const e = document.createElement("div"); e.className = "evo"; e.setAttribute("role", "status"); e.textContent = OV.banner; b.appendChild(e) } }, 1700) } };
