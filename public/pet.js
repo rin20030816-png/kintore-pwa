@@ -80,6 +80,7 @@
     }
   };
   const GLOW = ["#ffb02e", "#ffb02e", "#ff8a3d", "#ff6a2e", "#ffc21a", "#7fd8ff", "#7a8cff", "#ffd86a"];
+  const CV = "?v=3d1"; // 絵を入れ替えたときに、古い絵が残らないための印
   const U = STAGES.length - 1;
   const stageOf = p => { let i = 0; STAGES.forEach((s, k) => { if (p >= s.pt) i = k }); return i };
   const uOf = p => { const i = stageOf(p); return i >= U ? U : i + (p - STAGES[i].pt) / (STAGES[i + 1].pt - STAGES[i].pt) };
@@ -98,7 +99,7 @@
     const s = SP[key]; let i, u;
     if (opt.stage != null) { i = opt.stage; u = i } else { i = stageOf(pts); u = uOf(pts) }
     const f = Math.min(1, u - i), st = STAGES[i], live = !opt.still;
-    return `<div class="pc${i >= U ? " pc-top" : ""}${opt.spin ? " spinnable" : ""}" ${opt.spin ? 'data-spin="1" tabindex="0"' : ""} data-gc="${GLOW[i]}" role="${opt.spin ? "button" : "img"}" aria-label="${s.name}・${st.n}${opt.spin ? "。押すと、くるっと回る" : ""}" style="--gc:${GLOW[i]};--ga:${(0.10 + 0.28 * (i / U)).toFixed(2)}"><i class="pc-g"></i>${live && i >= 3 ? `<i class="pc-r" style="--ro:${(0.35 + 0.09 * (i - 3)).toFixed(2)}"></i>` : ""}<div class="pc-s">${live ? sparks(i) : ""}</div><i class="pc-f"></i><div class="pc-b${live ? " pbob" : ""}"><img src="/chars/${key}_${i + 1}.webp" alt="" draggable="false" style="padding:${(14 - 6 * f).toFixed(1)}% ${(10 - 4 * f).toFixed(1)}%"></div></div>`;
+    return `<div class="pc${i >= U ? " pc-top" : ""}${opt.spin ? " spinnable" : ""}" ${opt.spin ? 'data-spin="1" tabindex="0"' : ""} data-gc="${GLOW[i]}" role="${opt.spin ? "button" : "img"}" aria-label="${s.name}・${st.n}${opt.spin ? "。押すと、くるっと回る" : ""}" style="--gc:${GLOW[i]};--ga:${(0.10 + 0.28 * (i / U)).toFixed(2)}"><i class="pc-g"></i>${live && i >= 3 ? `<i class="pc-r" style="--ro:${(0.35 + 0.09 * (i - 3)).toFixed(2)}"></i>` : ""}<div class="pc-s">${live ? sparks(i) : ""}</div><i class="pc-f"></i><div class="pc-b${live ? " pbob" : ""}"><img src="/chars/${key}_${i + 1}.webp${CV}" alt="" draggable="false" style="padding:${(14 - 6 * f).toFixed(1)}% ${(10 - 4 * f).toFixed(1)}%"></div></div>`;
   }
   const lockedTile = () => `<div class="q" aria-hidden="true">？</div>`;
 
@@ -121,7 +122,7 @@
   function praise(kind) {
     const k = pet(); if (!k) return null;
     const lv = S.settings.petLv, i = Math.min(stageOf(life()), lv != null ? lv : 99), t = i >= 6 ? 2 : i >= 3 ? 1 : 0, set = SAY[k][kind];
-    return { key: k, name: SP[k].name, stage: i, src: `/chars/${k}_${i + 1}.webp`, text: set ? set[t] : "" };
+    return { key: k, name: SP[k].name, stage: i, src: `/chars/${k}_${i + 1}.webp${CV}`, text: set ? set[t] : "" };
   }
   window.__petPraise = { get: praise };
   (window.requestIdleCallback || (f => setTimeout(f, 2500)))(() => { const p = praise("max"); if (p) { const im = new Image(); im.src = p.src } }, { timeout: 6000 });
@@ -307,7 +308,7 @@
     const keys = Object.keys(SP);
     return `<div class="pw"><h1>相棒を、えらぼう</h1>
       <p class="lead">3体のなかから、1体を選びます。選んだ子と、最後まで育てていきます。<b>一度選ぶと、あとから変えられません。</b>あなたの筋トレの記録で、この子がいっしょに成長します。記録を更新したときは、この子がほめてくれます。進化のすがたは、影だけ見せます。本当のすがたは、たどりつくまでひみつ。</p>
-      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}">${draw(x, 0, { stage: 0, still: OB.sel !== x })}<span><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span><span class="sils" aria-label="進化のすがた（影だけ）">${STAGES.map((s, n) => n ? `<i style="--m:url(/chars/sil/${x}_${n + 1}.webp)"></i>` : "").join("")}</span></button>`).join("")}
+      ${keys.map(x => `<button type="button" class="obc" data-pet="obsel" data-k="${x}" aria-pressed="${OB.sel === x}">${draw(x, 0, { stage: 0, still: OB.sel !== x })}<span><b>${SP[x].name}</b><span class="kind">${SP[x].kind}</span><small>${SP[x].line}</small></span><span class="sils" aria-label="進化のすがた（影だけ）">${STAGES.map((s, n) => n ? `<i style="--m:url(/chars/sil/${x}_${n + 1}.webp${CV})"></i>` : "").join("")}</span></button>`).join("")}
       <div class="obf">${OB.conf && OB.sel
         ? `<div class="obw"><b>${SP[OB.sel].name}で、決めますか？</b><br>相棒は、あとから変えられません。</div><button type="button" class="btn" data-pet="obgo2">この子に、決める</button><button type="button" class="lnk" data-pet="obback">もどって、えらびなおす</button>`
         : `<button type="button" class="btn" data-pet="obgo" ${OB.sel ? "" : "disabled"}>${OB.sel ? `${SP[OB.sel].name}にする` : "ひとり、えらんでね"}</button><button type="button" class="lnk" data-pet="obskip">あとで選ぶ</button>`}</div></div>`;
