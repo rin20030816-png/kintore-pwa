@@ -5,6 +5,9 @@
    WebGLが使えない端末では、何もしません（pet.js の、平らな絵の回転のまま）。 */
 (function () {
   const GEO = new Map(), CTL = new WeakMap();
+  /* GLB: 本物の3Dモデル（chars/glb/○○.glb）があるキャラ・段階。ふやすときは、ここに名前を足す */
+  const GLB = new Set(["goro_1", "goro_2", "goro_3", "goro_4", "goro_5", "goro_6", "goro_7", "goro_8", "chick_1", "chick_2", "chick_3", "chick_4", "chick_5", "chick_6", "chick_7", "chick_8", "bolt_1", "bolt_2", "bolt_3", "bolt_4", "bolt_5", "bolt_6", "bolt_7", "bolt_8"]);
+  let glbP = null; const loadGlbLib = () => glbP || (glbP = new Promise((res, rej) => { if (window.__petGlb) return res(); const e = document.createElement("script"); e.src = "/pet3d-glb.js"; e.onload = res; e.onerror = rej; document.head.appendChild(e) }));
 
   /* ---------- 絵 → 立体の形 ---------- */
   function build(im) {
@@ -148,11 +151,24 @@
       const cvs = document.createElement("canvas"); cvs.className = "pc-gl"; cvs.setAttribute("aria-hidden", "true");
       cvs.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .25s";
       (c.querySelector(".pc-b") || c).appendChild(cvs);
-      geom(img.getAttribute("src")).then(g => {
-        if (!c.isConnected) { cvs.remove(); return }
-        const ctl = start(c, cvs, g); CTL.set(c, ctl);
-        img.style.visibility = "hidden"; cvs.style.opacity = "1"; c.classList.add("pc-3d");
-      }).catch(() => { cvs.remove(); CTL.delete(c) });
+      const puffy = () => { // ふくらませた立体（絵から作る）
+        const cv2 = cvs.cloneNode(false); cvs.replaceWith(cv2);
+        geom(img.getAttribute("src")).then(g => {
+          if (!c.isConnected) { cv2.remove(); return }
+          const ctl = start(c, cv2, g); CTL.set(c, ctl);
+          img.style.visibility = "hidden"; cv2.style.opacity = "1"; c.classList.add("pc-3d");
+        }).catch(() => { cv2.remove(); CTL.delete(c) });
+      };
+      const gk = ((/chars\/(\w+)\.webp/.exec(img.getAttribute("src")) || [])[1]);
+      if (gk && GLB.has(gk)) { // GLB: 本物の3Dモデルがあるキャラ・段階。うまくいかなければ、puffy にもどる
+        loadGlbLib().then(() => window.__petGlb.start(c, cvs, "/chars/glb/" + gk + ".glb")).then(ctl => {
+          if (!c.isConnected) { ctl.destroy(); return }
+          ctl.onfail = () => { CTL.delete(c); c.classList.remove("pc-3d"); puffy() };
+          CTL.set(c, ctl); img.style.visibility = "hidden"; cvs.style.opacity = "1"; c.classList.add("pc-3d");
+        }).catch(() => { if (c.isConnected) { CTL.delete(c); puffy() } });
+        return;
+      }
+      puffy();
     });
   }
   window.__pet3d = { mount, get: c => CTL.get(c) || null };
